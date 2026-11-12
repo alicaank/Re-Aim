@@ -76,6 +76,11 @@ ARMS = {
     'sham': dict(name='sham', write='commanded', replan=True),
     'write_measured': dict(name='write_measured', write='measured', replan=False),
     'replan_commanded': dict(name='replan_commanded', write='commanded', replan=True),
+    # gaussverse 2026-11-10: replan_commanded + the shared rule gain_rule.ProjectedGain (correction_v4_gaincum_20261109), used as
+    # in SANA: update(command at the measured frame, measured), then apply to the new commands around that command pose.
+    'replan_commanded_gainproj': dict(name='replan_commanded_gainproj', write='commanded', replan=True, gainproj=True),
+    # gaussverse 2026-11-12: the same with the floor of 1 (gain_rule.ProjectedGainFloor, arm correction_gainprojf of the other models)
+    'replan_commanded_gainprojf': dict(name='replan_commanded_gainprojf', write='commanded', replan=True, gainproj=True, floor=True),
     'replan_measured': dict(name='replan_measured', write='measured', replan=True),
 }
 DEVIATIONS = [
@@ -345,8 +350,13 @@ class Runner:
                 st.cmd[prev_end:end] = planned.copy() if np.array_equal(M,E) else (FP.rejoin_offset(M, planned, E) if self.a.replan_mode == 'offset' else FP.replan_se3(M, planned, E))
                 if arm['name']!='sham' and arm['write']=='commanded':
                     st.cmd[prev_end:end]=(st.cmd[prev_end-1]@np.linalg.inv(M))@st.cmd[prev_end:end]
+                gain = None
+                if arm.get('gainproj'):
+                    from gain_rule import ProjectedGain, ProjectedGainFloor
+                    if getattr(st, 'rule', None) is None: st.rule = (ProjectedGainFloor if arm.get('floor') else ProjectedGain)(self.plan[0], self.plan[0])
+                    gain = st.rule.update(st.cmd[prev_end-1], M); st.cmd[prev_end:end] = st.rule.apply(st.cmd[prev_end:end], st.cmd[prev_end-1])
                 replan = dict(kind='replan', round=r, frame=prev_end, mode=self.a.replan_mode, frames=end - prev_end,
-                              position_error=float(np.linalg.norm(M[:3, 3] - E[:3, 3])), rotation_error_deg=FP.geodesic_deg(M, E))
+                              position_error=float(np.linalg.norm(M[:3, 3] - E[:3, 3])), rotation_error_deg=FP.geodesic_deg(M, E), gain=gain)
             else:
                 raise RuntimeError('Cannot apply planned feedback: invalid DA3 endpoint')
             st.events.append(replan)

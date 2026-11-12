@@ -8,7 +8,7 @@ os.environ.update(DISABLE_XFORMERS='1',SANA_WM_STREAMING_LAZY_VAE_DECODER='1',SA
 from common import PoseWorker,rejoin
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction','correction_gain','correction_gaincum','correction_gainrt'],required=True);ap.add_argument('--frames',type=int,default=49);ap.add_argument('--seed',type=int,default=7);ap.add_argument('--scale_mode',choices=['anchor','legacy'],default='anchor');a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=False)
+ ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'],required=True);ap.add_argument('--frames',type=int,default=49);ap.add_argument('--seed',type=int,default=7);ap.add_argument('--scale_mode',choices=['anchor','legacy'],default='anchor');a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=False)
  import torch
  import inference_video_scripts.wm.inference_sana_wm_streaming as entry
  import inference_video_scripts.wm.inference_sana_wm as lib
@@ -82,9 +82,9 @@ def main():
   stride=int(pipe.config.vae.vae_stride[0]);latent_lo=(lo//stride)+1;latent_hi=min(latent_lo+int(pipe.refiner_settings.block_size),state['latent_T']);hi=(latent_hi-1)*stride+1
   assert lo%stride==0
   gain=None
-  if a.arm in ['sham','correction','correction_gain','correction_gaincum','correction_gainrt']:
-   start=measured if a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt') else plan[lo]
-   if a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt'):
+  if a.arm in ['sham','correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf']:
+   start=measured if a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf') else plan[lo]
+   if a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'):
     desired=rejoin(start,plan[lo],plan[lo+1:hi]);new=(commands[lo]@np.linalg.inv(start))@desired
     if a.arm=='correction_gain':
      # Gain-aware correction (2026-11-08): SANA realizes ~1.3-6x the commanded translation (DL3DV median 2.6x), so the
@@ -114,6 +114,20 @@ def main():
       gstate['cgrt']=CumulativeGainRT(plan[0],plan[0])
      gain=gstate['cgrt'].update(commands[lo],measured)
      new=gstate['cgrt'].apply(new,commands[lo])
+    if a.arm=='correction_gainproj':
+     # correction_gainproj (2026-11-09): the shared rule gain_rule.ProjectedGain (movement and turning along the command).
+     if 'cgp' not in gstate:
+      from gain_rule import ProjectedGain
+      gstate['cgp']=ProjectedGain(plan[0],plan[0])
+     gain=gstate['cgp'].update(commands[lo],measured)
+     new=gstate['cgp'].apply(new,commands[lo])
+    if a.arm=='correction_gainprojf':
+     # correction_gainprojf (2026-11-10): projected rule with both ratios floored at 1 (gain_rule.ProjectedGainFloor).
+     if 'cgpf' not in gstate:
+      from gain_rule import ProjectedGainFloor
+      gstate['cgpf']=ProjectedGainFloor(plan[0],plan[0])
+     gain=gstate['cgpf'].update(commands[lo],measured)
+     new=gstate['cgpf'].apply(new,commands[lo])
     commands[lo+1:hi]=new
    fresh=lib.prepare_camera(commands,intr,target_size=(lib.TARGET_HEIGHT,lib.TARGET_WIDTH),vae_stride=pipe.config.vae.vae_stride)
    ray=fresh['raymap'].unsqueeze(0).to(state['ray']);pl=fresh['chunk_plucker'].unsqueeze(0).to(state['plucker'])
@@ -121,7 +135,7 @@ def main():
    if a.arm=='sham':
     assert torch.equal(ray[:,latent_lo:latent_hi],state['ray'][:,latent_lo:latent_hi]);assert torch.equal(pl[:,:,latent_lo:latent_hi],state['plucker'][:,:,latent_lo:latent_hi])
    state['ray'][:,latent_lo:latent_hi].copy_(ray[:,latent_lo:latent_hi]);state['plucker'][:,:,latent_lo:latent_hi].copy_(pl[:,:,latent_lo:latent_hi])
-  events.append({'chunk':chunk,'observed_frame':lo,'next_latent_range':[latent_lo,latent_hi],'measured':measured.tolist(),'measurement':info,'correction_applied':a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt'),'gain':gain,'prefix_sha256':hashlib.sha256(np.asarray(prefix).tobytes()).hexdigest()});(a.out/'events.json').write_text(json.dumps(events,indent=2))
+  events.append({'chunk':chunk,'observed_frame':lo,'next_latent_range':[latent_lo,latent_hi],'measured':measured.tolist(),'measurement':info,'correction_applied':a.arm in ('correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'),'gain':gain,'prefix_sha256':hashlib.sha256(np.asarray(prefix).tobytes()).hexdigest()});(a.out/'events.json').write_text(json.dumps(events,indent=2))
  # Capture live camera tensors, without changing model kwargs or their original preparation.
  src=textwrap.dedent(inspect.getsource(lib.SanaWMPipeline.generate_streaming));needle='    latent_channels = first_latent.shape[1]';assert src.count(needle)==1;src=src.replace(needle,'    _setup(self, raymap_cfg, chunk_plucker_cfg, latent_T)\n'+needle)
  scope=dict(lib.__dict__,_setup=setup);exec(compile(src,str(R/'sana_generate_hook.py'),'exec'),scope);lib.SanaWMPipeline.generate_streaming=scope['generate_streaming']

@@ -10,7 +10,7 @@ os.environ['PATH']=os.pathsep.join([str(P/'envs/worldwarp312/bin'),'@WORKSPACE@/
 from common import rejoin,PoseWorker
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction'],required=True);ap.add_argument('--chunks',type=int,default=2);ap.add_argument('--seed',type=int,default=7)
+ ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'],required=True);ap.add_argument('--chunks',type=int,default=2);ap.add_argument('--seed',type=int,default=7)
  ap.add_argument('--scale_mode',choices=['anchor'],default='anchor');ap.add_argument('--camera_window',choices=['fixed','legacy'],default='fixed')
  a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=False)
  if a.camera_window=='legacy' and a.chunks>1:raise ValueError('Legacy continuation indexing is structurally invalid; only allowed in one-chunk scale ablation')
@@ -45,6 +45,10 @@ def main():
  assert cfg.inference_params.context_frames==1 and cfg.inference_params.context_frames_2nd==1
  imageio.mimwrite(cfg.paths.input_video_path,[anchor]*81,fps=16,macro_block_size=1)
  worker=None;events=[];prefix=[]
+ # gaussverse 2026-11-10 (correction_gainproj): shared rule gain_rule.ProjectedGain. WorldWarp conditions every chunk to start
+ # at its first target (= the measured pose), so the commanded motion of an interval runs from the previous measured pose
+ # (start: plan[0]) to the command for the newly measured frame (the previous chunk's last target).
+ gstate=dict(rule=None,last=plan[80].copy())
  sys.path.insert(0,str(R.parent/'continuous_eval_20261029'))
  from anchor_scale import worldwarp_camera_window
  sys.path.insert(0,str(R.parent/'fair_common_20261025'))
@@ -94,10 +98,16 @@ def main():
    if i and a.arm!='native':
     if worker is None:worker=PoseWorker(a.out/'observer')
     with torch.random.fork_rng(devices=[0]):measured,info=worker.measure(np.asarray(prefix),K,depth)
-    if a.arm in ['correction','sham']:
-     start=measured if a.arm=='correction' else plan[lo]
+    gain=None
+    if a.arm in ['correction','sham','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf']:
+     start=measured if a.arm in ('correction','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf') else plan[lo]
      target[1:]=rejoin(start,plan[lo],plan[lo+1:lo+81]);target[0]=start
-    events.append({'chunk':i,'observed_frame':lo,'measured':measured.tolist(),'conditioning_path':target.tolist(),'correction_applied':a.arm=='correction','measurement':info,'prefix_sha256':hashlib.sha256(np.asarray(prefix).tobytes()).hexdigest()});(a.out/'events.json').write_text(json.dumps(events,indent=2))
+     if a.arm in ('correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'):
+      from gain_rule import RULES
+      if gstate['rule'] is None:gstate['rule']=RULES[a.arm](plan[0],plan[0])
+      gain=gstate['rule'].update(gstate['last'],measured);target[1:]=gstate['rule'].apply(target[1:],measured);gstate['rule'].cmd=measured.copy()
+     gstate['last']=target[80].copy()
+    events.append({'chunk':i,'observed_frame':lo,'measured':measured.tolist(),'conditioning_path':target.tolist(),'correction_applied':a.arm in ('correction','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'),'gain':gain,'measurement':info,'prefix_sha256':hashlib.sha256(np.asarray(prefix).tobytes()).hexdigest()});(a.out/'events.json').write_text(json.dumps(events,indent=2))
    # Feed actual output-time poses: native run() advances its source-array slice by ctx,
    # although stitched video advances by 81-ctx. Both arms use the same external adapter.
    # Native geometry indexes the 81 source frames followed by 80 new targets.

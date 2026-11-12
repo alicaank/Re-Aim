@@ -26,7 +26,10 @@ ARM = dict(name='baseline', write='commanded', replan=False, replan_frac=1.0, sl
            depth_slot_scale=1.0, depth_buffer_scale=1.0, gate_tau=0.15)
 ARM.update(json.loads(os.environ.get('GV_LYRA_ARM', '{}')))
 assert ARM['write'] in ('commanded', 'predicted', 'gated') and ARM['slots'] in ('full', 'drop', 'appearance')
-assert ARM['write']=='commanded', 'This comparison must preserve native memory labels'
+# gaussverse 2026-11-10: memory-label test (arm memmeas): GV_LYRA_WRITE=predicted lets Lyra label new frames in its memory with its own
+# DA3-measured poses (--da3_use_predicted_pose --da3_predicted_pose_continuation) instead of the commanded poses; every other run keeps
+# the native commanded labels.
+assert ARM['write']=='commanded' or os.environ.get('GV_LYRA_WRITE')==ARM['write'], 'This comparison must preserve native memory labels'
 EVENTS = []
 
 
@@ -89,7 +92,7 @@ def gv_step(self, *, cam_w2c_chunk, intrinsics_chunk, **kw):
         finally:
             self.local_da3_model.to(da3dev);ARI._restore_diffusion_to_gpu(self.model,True)
         n=int(cam.shape[-3]);future=plan[lo+1:lo+n+1];assert len(future)==n
-        if ARM['name'] in ('correction','correction_gain','correction_gaincum','correction_gainrt'):
+        if ARM['name'] in ('correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'):
             previous=np.linalg.inv(self.cam_w2c[0,-1].detach().cpu().double().numpy())
             desired=rejoin(measured,plan[lo],future)
             commands=(previous@np.linalg.inv(measured))@desired
@@ -125,12 +128,30 @@ def gv_step(self, *, cam_w2c_chunk, intrinsics_chunk, **kw):
                 gi=self._gv_cgrt.update(previous,measured)
                 commands=self._gv_cgrt.apply(commands,previous)
                 _event(kind='gain',frame=lo,**gi)
+            if ARM['name']=='correction_gainproj':
+                # gaussverse 2026-11-09 (correction_gainproj): the shared rule gain_rule.ProjectedGain (along the command).
+                from gain_rule import ProjectedGain
+                if not hasattr(self,'_gv_cgp'):
+                    start=np.linalg.inv(self.cam_w2c[0,0].detach().cpu().double().numpy())
+                    self._gv_cgp=ProjectedGain(start,start)
+                gi=self._gv_cgp.update(previous,measured)
+                commands=self._gv_cgp.apply(commands,previous)
+                _event(kind='gain',frame=lo,**gi)
+            if ARM['name']=='correction_gainprojf':
+                # gaussverse 2026-11-10 (correction_gainprojf): projected rule with both ratios floored at 1 (gain_rule.ProjectedGainFloor).
+                from gain_rule import ProjectedGainFloor
+                if not hasattr(self,'_gv_cgpf'):
+                    start=np.linalg.inv(self.cam_w2c[0,0].detach().cpu().double().numpy())
+                    self._gv_cgpf=ProjectedGainFloor(start,start)
+                gi=self._gv_cgpf.update(previous,measured)
+                commands=self._gv_cgpf.apply(commands,previous)
+                _event(kind='gain',frame=lo,**gi)
             upd=torch.as_tensor(np.linalg.inv(commands),dtype=cam.dtype,device=cam.device)
             cam=upd[None] if cam.dim()==4 else upd
         elif ARM['name']=='sham':
             assert np.array_equal(rejoin(plan[lo],plan[lo],future),future)
             assert torch.equal(cam,cam_w2c_chunk)
-        _event(kind='external_feedback',frame=lo,applied=ARM['name'] in ('correction','correction_gain','correction_gaincum','correction_gainrt'),measured=measured.tolist(),measurement=info,prefix_sha256=hashlib.sha256(frames.tobytes()).hexdigest())
+        _event(kind='external_feedback',frame=lo,applied=ARM['name'] in ('correction','correction_gain','correction_gaincum','correction_gainrt','correction_gainproj','correction_gainprojf'),measured=measured.tolist(),measurement=info,prefix_sha256=hashlib.sha256(frames.tobytes()).hexdigest())
     result=_orig_step(self,cam_w2c_chunk=cam,intrinsics_chunk=intrinsics_chunk,**kw)
     if kw.get('is_last_step') and hasattr(self,'_long_observer'):self._long_observer.close()
     return result
@@ -246,6 +267,8 @@ if __name__ == '__main__':
     argv = sys.argv[1:]
     if ARM['write'] in ('predicted', 'gated'):
         argv += ['--da3_use_predicted_pose', '--da3_predicted_pose_continuation']
+        if os.environ.get('GV_LYRA_WRITE') == 'predicted':   # gaussverse 2026-11-10 memory test: with 80-frame chunks the default DA3 window
+            argv += ['--da3_include_ar_chunk_last_frames']  # (10 frames, 8 apart) misses frame 0 / the chunk ends that the continuation alignment needs
     out = argv[argv.index('--output_path') + 1]
     os.makedirs(out, exist_ok=True)
     json.dump(dict(ARM, argv=argv), open(os.path.join(out, 'gv_arm.json'), 'w'), indent=1)

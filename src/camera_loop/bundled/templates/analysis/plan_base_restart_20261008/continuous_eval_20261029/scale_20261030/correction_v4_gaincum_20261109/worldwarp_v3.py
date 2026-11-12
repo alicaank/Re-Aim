@@ -2,6 +2,7 @@
 import argparse,json,sys,os
 from pathlib import Path
 R=Path(__file__).resolve().parent
+sys.path.append(str(R))  # gaussverse 2026-11-10: gain_rule.py (shared gain rule)
 p=argparse.ArgumentParser(add_help=False)
 p.add_argument('--continuation-check',choices=['enforce'],default='enforce')
 p.add_argument('--observer-quality',choices=['report','enforce'],default='report')

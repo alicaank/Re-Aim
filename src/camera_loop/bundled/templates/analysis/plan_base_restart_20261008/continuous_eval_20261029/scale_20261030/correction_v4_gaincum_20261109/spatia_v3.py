@@ -4,6 +4,7 @@ Original running adapter and checkpoint files are never modified.
 import argparse,json,os,sys
 from pathlib import Path
 R=Path(__file__).resolve().parent
+sys.path.append(str(R))  # gaussverse 2026-11-10: gain_rule.py (shared gain rule)
 p=argparse.ArgumentParser(add_help=False);p.add_argument('--visibility-views-per-batch',type=int,default=1);p.add_argument('--observer-quality',choices=['off','report','enforce'],default='off')
 a,rest=p.parse_known_args();sys.argv=[sys.argv[0]]+rest
 if a.visibility_views_per_batch<1:raise ValueError('Invalid camera batch size')
@@ -24,4 +25,8 @@ if a.observer_quality!='off':
 needle="                torch.cuda.empty_cache()\n            atomic_json"
 assert source.count(needle)==1
 source=source.replace(needle,"                atomic_json(a.out / '_proc' / f'{tag}.json', proc)\n                raise\n            atomic_json")
+# gaussverse 2026-11-12: RE10K 240-frame runs read the longer stored plan (GV_PLAN_KEY=w2c_overrun, 240 poses); unset = unchanged
+if os.environ.get('GV_PLAN_KEY'):
+    needle="    w2c = z['w2c'].astype(np.float64)\n";assert source.count(needle)==1
+    source=source.replace(needle,"    w2c = z['%s'].astype(np.float64)\n"%os.environ['GV_PLAN_KEY'])
 exec(compile(source,meta['original'],'exec'),dict(__name__='__main__',__file__=meta['original'],V3_VIEWS=a.visibility_views_per_batch,V3_WORKER=str(R/'observer_worker.py')))

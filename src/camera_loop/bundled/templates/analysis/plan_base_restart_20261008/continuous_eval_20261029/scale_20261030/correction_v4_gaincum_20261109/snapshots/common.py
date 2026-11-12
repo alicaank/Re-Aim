@@ -8,6 +8,9 @@ R=Path(__file__).resolve().parent
 def rejoin(measured,previous_command,future_plan):
  p=np.asarray(future_plan,np.float64).copy();n=len(p)
  if np.array_equal(measured,previous_command):return p
+ # gaussverse 2026-11-10: GV_REJOIN=direct (arm correction_direct) skips the fade: the future commands are the plan itself, so
+ # the whole measured offset is corrected at the first new frame instead of being blended out over the chunk.
+ if os.environ.get('GV_REJOIN')=='direct':return p
  dt=measured[:3,3]-previous_command[:3,3]
  dr=Rotation.from_matrix(measured[:3,:3]@previous_command[:3,:3].T)
  sl=Slerp([0,1],Rotation.concatenate([dr,Rotation.identity()]))

@@ -1,7 +1,6 @@
 # correction_v4_gaincum_20261109: shared gain rule
 
-Copy of `correction_v3_20261030` with gain-aware correction arms for Lyra-2 (`snapshots/lyra_plugin.py`) and SANA
-(`snapshots/sana_run.py`). All other arms behave exactly as in `correction_v3_20261030`.
+Gain-aware adapters extend the v3 correction implementation.
 
 The rule is one file, `gain_rule.py`, used by every adapter. It was written before any run that uses it.
 
@@ -24,7 +23,7 @@ The rule is one file, `gain_rule.py`, used by every adapter. It was written befo
   below 1 enlarges the next commands, the model follows those even less, and the camera runs away from the plan (seen on
   DreamX, WorldWarp, HY-WorldPlay and MatrixGame). The raw ratios are logged as `g_raw` / `g_rot_raw`.
 
-There is no window, no minimum movement and no clipping. A ratio keeps its previous value (starting at 1) only when it is
+The projected rule uses the cumulative history. The rectified variant additionally floors each applied gain at one. A ratio keeps its previous value (starting at 1) only when it is
 undefined: nothing commanded or measured yet, or a non-finite measurement. With g = g_rot = 1 the arm is exactly the
 original `correction`.
 
@@ -45,4 +44,4 @@ Other switches (all off by default, so the arms above are unchanged):
 
 Run the adapters directly, as with v3, e.g.
 `python sana_v3.py --batch <batch> --scene <id> --out <dir> --arm correction_gainrt --seed 7 --frames 481 --scale_mode anchor`.
-`camera_loop.integrations` still points at `correction_v3_20261030`; these arms are not wired into the CLI yet.
+Use `camera-loop run --arm correction_gainprojf` for the rectified rule. The CLI keeps the historical launchers for baseline and ordinary correction.

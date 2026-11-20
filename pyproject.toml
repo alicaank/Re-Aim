@@ -9,6 +9,9 @@ description = "Model-aware camera alignment and causal closed-loop camera correc
 requires-python = ">=3.10"
 dependencies = ["numpy>=1.24", "scipy>=1.10", "Pillow>=10"]
 
+[project.optional-dependencies]
+test = ["pytest>=7", "opencv-python-headless>=4.8"]
+
 [project.scripts]
 camera-loop = "camera_loop.cli:main"
 

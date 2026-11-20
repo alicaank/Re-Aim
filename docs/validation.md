@@ -34,7 +34,7 @@ The initial release passed 19 CPU tests, including execution against an installe
 
 Version 0.3.0 adds VIPE registration and relocated scoring-entrypoint checks, and verifies that preparation selects the pinned VIPE source rather than VGGT. The suite has 33 top-level tests; the evaluator test also runs four geometry cases in a separate process. A local VIPE import/configuration dry run passed with CUDA hidden. GPU qualification of VIPE scoring is pending. See [evaluation protocol](evaluation.md).
 
-Run with `python -m unittest discover -s tests -v`. CI runs the CPU suite on Python 3.10–3.12. It does not download model weights or validate GPU behavior.
+Install the test dependencies in the [reviewer instructions](../README.md#verify-the-implementation), then run `python -m pytest -q -rs tests`. CI runs the CPU suite on Python 3.10–3.12. It does not download model weights or validate GPU behavior.
 
 A successful CPU suite or wheel install is not an end-to-end model claim. Native environment installation, checkpoint availability, pose-estimator loading and GPU sampling must be tested on the destination machine.
 

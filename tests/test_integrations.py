@@ -66,6 +66,36 @@ class Integrations(unittest.TestCase):
                 if model in ["lyra", "spatia", "sana", "worldwarp"]:
                     self.assertIn("--observer-quality", argv)
 
+    def test_rectified_gain_launchers_in_relocated_workspace(self):
+        expected = {
+            "sana": ("sana_v3.py", "correction_gainprojf"),
+            "lyra": ("lyra_v3.py", "correction_gainprojf"),
+            "worldwarp": ("worldwarp_v3.py", "correction_gainprojf"),
+            "spatia": ("spatia_v3.py", "replan_commanded_gainprojf"),
+            "dreamx": ("dreamx_run_gainproj.py", "correction_gainprojf"),
+            "vmem": ("vmem_run_gainproj.py", "replan_commanded_gainprojf"),
+        }
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            materialize(root, {})
+            for model, (script, arm) in expected.items():
+                with self.subTest(model=model):
+                    argv, _ = command(root, model, sys.executable, root / "batch",
+                                      "scene", root / "out", "correction_gainprojf")
+                    launcher = Path(argv[1])
+                    self.assertTrue(launcher.is_file())
+                    self.assertEqual(launcher.name, script)
+                    self.assertIn(arm, argv)
+                    if model in {"sana", "lyra", "worldwarp", "spatia"}:
+                        self.assertTrue((launcher.parent / "gain_rule.py").is_file())
+                    if model == "vmem":
+                        arms = json.loads(Path(argv[argv.index("--arms") + 1]).read_text())
+                        record = next(item for item in arms if item["name"] == arm)
+                        self.assertTrue(record["floor"] and record["gainproj"])
+            with self.assertRaisesRegex(ValueError, "no bundled RGC launcher"):
+                command(root, "matrixgame", sys.executable, root / "batch",
+                        "scene", root / "out", "correction_gainprojf")
+
     def test_vmem_measured_arm_is_explicit(self):
         argv, _ = command(
             "/w", "vmem", "/python", "/batch", "scene", "/out", "replan_measured"

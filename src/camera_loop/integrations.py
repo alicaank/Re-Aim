@@ -11,6 +11,9 @@ C = A / "continuous_eval_20261029"
 L = A / "long_domain_20261028"
 F = A / "fair_common_20261025"
 V = C / "scale_20261030/correction_v3_20261030"
+GAIN_ADAPTERS = V.parent / "correction_v4_gaincum_20261109"
+RGC_ARM = "correction_gainprojf"
+RGC_MODELS = {"lyra", "sana", "spatia", "worldwarp", "dreamx", "vmem"}
 
 
 def materialize(workspace, config, clone=False):
@@ -146,13 +149,14 @@ def materialize(workspace, config, clone=False):
             )
         target.write_text(text)
     # Refresh versioned snapshot hashes after relocation; source identity is retained in the bundle manifest.
-    manifest_path = w / V / "source_manifest.json"
-    manifest = json.loads(manifest_path.read_text())
-    for name, entry in manifest.items():
-        entry["sha256"] = hashlib.sha256(
-            (w / V / "snapshots" / name).read_bytes()
-        ).hexdigest()
-    manifest_path.write_text(json.dumps(manifest, indent=2))
+    for adapter_dir in (V, GAIN_ADAPTERS):
+        manifest_path = w / adapter_dir / "source_manifest.json"
+        manifest = json.loads(manifest_path.read_text())
+        for name, entry in manifest.items():
+            entry["sha256"] = hashlib.sha256(
+                (w / adapter_dir / "snapshots" / name).read_bytes()
+            ).hexdigest()
+        manifest_path.write_text(json.dumps(manifest, indent=2))
     receipt = dict(
         models=selected,
         workspace=str(w),
@@ -183,7 +187,11 @@ def command(
     w = Path(workspace).resolve()
     b = str(Path(batch).resolve())
     o = str(Path(out).resolve())
-    if arm not in ["native", "baseline", "sham", "correction", "replan_measured"]:
+    rgc = arm == RGC_ARM
+    if rgc and model not in RGC_MODELS:
+        raise ValueError(f"{model} has no bundled RGC launcher")
+    version = GAIN_ADAPTERS if rgc else V
+    if arm not in [RGC_ARM, "native", "baseline", "sham", "correction", "replan_measured"]:
         raise ValueError("Unknown arm")
     if arm == "replan_measured" and model != "vmem":
         raise ValueError(
@@ -196,15 +204,15 @@ def command(
     if quality not in ["enforce", "report"]:
         raise ValueError("Invalid quality mode")
     common = ["--batch", b, "--scene", scene, "--out", o]
-    corrected = {"correction": "replan_commanded"}.get(arm, arm)
+    corrected = {"correction": "replan_commanded", RGC_ARM: "replan_commanded_gainprojf"}.get(arm, arm)
     if model == "matrixgame":
         script = C / "mg35_stream_run.py"
         args = common + ["--arm", arm, "--blocks", "6", "--seed", "7"]
     elif model == "lyra":
-        script = V / "lyra_v3.py"
+        script = version / "lyra_v3.py"
         args = common + ["--arm", arm, "--frames", "481", "--observer-quality", quality]
     elif model == "spatia":
-        script = V / "spatia_v3.py"
+        script = version / "spatia_v3.py"
         args = common + [
             "--arms",
             corrected,
@@ -226,7 +234,7 @@ def command(
             "1",
         ]
     elif model == "worldwarp":
-        script = V / "worldwarp_v3.py"
+        script = version / "worldwarp_v3.py"
         args = common + [
             "--arm",
             arm,
@@ -244,7 +252,7 @@ def command(
             quality,
         ]
     elif model == "sana":
-        script = V / "sana_v3.py"
+        script = version / "sana_v3.py"
         args = common + [
             "--arm",
             arm,
@@ -258,12 +266,12 @@ def command(
             quality,
         ]
     elif model == "vmem":
-        script = L / "vmem_run.py"
+        script = L / ("vmem_run_gainproj.py" if rgc else "vmem_run.py")
         args = [
             "--out",
             o,
             "--arms",
-            str(w / L / "vmem_arms.json"),
+            str(w / L / ("vmem_arms_re10k.json" if rgc else "vmem_arms.json")),
             "--arm",
             corrected,
             "--scenes",
@@ -309,6 +317,8 @@ def command(
         ]
     else:
         script = N / ("lingbot_pair.py" if model == "lingbot" else "dreamx_run.py")
+        if rgc:
+            script = N / "dreamx_run_gainproj.py"
         args = (
             common
             + ["--seed", "7"]

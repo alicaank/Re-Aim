@@ -2,7 +2,7 @@ import argparse, json, subprocess
 from dataclasses import asdict
 from pathlib import Path
 from .registry import profiles
-from .integrations import materialize, doctor, command
+from .integrations import materialize, doctor, command, RGC_ARM
 from .alignment import align_model
 from .datasets import import_batch, validate_batch, fingerprint
 from .experiments import plan_experiment, execute_plan, check_lyra_cache
@@ -33,7 +33,7 @@ def main():
     a.add_argument(
         "--arm",
         default="correction",
-        choices=["baseline", "native", "sham", "correction", "replan_measured"],
+        choices=["baseline", "native", "sham", "correction", RGC_ARM, "replan_measured"],
     )
     a.add_argument("--device", default="0")
     a.add_argument("--quality", choices=["report", "enforce"], default="enforce")

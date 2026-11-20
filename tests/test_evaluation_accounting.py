@@ -35,8 +35,8 @@ class LosslessArchiveTests(unittest.TestCase):
     def test_rgb_roundtrip_preserves_all_pixels(self):
         import shutil
         from camera_loop.lossless_archive import archive_rgb,read_rgb
-        ff=shutil.which('ffmpeg') or '/home/hj/Alican/analysis/plan_base_restart_20261008/model_controls_20261024/bin/ffmpeg'
-        if not Path(ff).exists():self.skipTest('FFmpeg not installed')
+        ff=shutil.which('ffmpeg')
+        if ff is None:self.skipTest('FFmpeg not installed')
         rgb=np.random.default_rng(3).integers(0,256,(5,24,32,3),dtype=np.uint8)
         with tempfile.TemporaryDirectory() as td:
             p=Path(td)/'frames.mkv';receipt=archive_rgb(rgb,p,ff)

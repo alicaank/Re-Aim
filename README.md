@@ -26,6 +26,8 @@ Re-Aim + RGC   0.0625
 
 The numbers are averages over 40 simulated frames. The first chunk is shared by all three runs because the controller has yet to observe a completed chunk. For the complementary under-execution example, run `python examples/synthetic_loop.py`.
 
+To save these poses and independently recompute the errors, follow the [CPU scoring example](docs/evaluation.md#check-a-trajectory-on-cpu).
+
 ## Verify the implementation
 
 To test just the shared gain rule, use the environment above:
@@ -43,33 +45,15 @@ python -m pip install '.[test]'
 python -m pytest -q -rs tests
 ```
 
-The final summary gives the pass count and the reason for each skip. Two checks require optional upstream source checkouts. GitHub Actions also runs the suite and both examples on Python 3.10, 3.11, and 3.12.
+The final summary gives the pass count and the reason for each skip. VMem parity requires its optional upstream source checkout. GitHub Actions also runs the suite and both examples on Python 3.10, 3.11, and 3.12.
 
-## Run a video model
+## Generate and score videos
 
-Native generation needs a supported GPU, the selected upstream model and observer environments, their checkpoints, and a calibrated scene. The [setup guide](docs/setup.md) covers source pins, environment paths and weights. The [dataset guide](docs/datasets.md) specifies the images, intrinsics, trajectories, and depth. For scoring generated videos, see the [VIPE evaluation guide](docs/evaluation.md).
+1. [Install a baseline](docs/models.md#install-a-baseline). Choose the model, prepare its pinned source, and install its native environment, checkpoints, and pose observer.
+2. [Prepare a scene](docs/datasets.md). Use `python examples/make_test_scene.py --out outputs/test-scene` to generate a calibrated input and recording, or import your own first image, trajectory, intrinsics, and anchor depth. Include recording frames for appearance metrics.
+3. [Generate matched runs](docs/models.md#generate-matched-runs). Use `baseline` for the world model, `correction` for Re-Aim, and `correction_gainprojf` for Re-Aim + RGC. Each comparison uses the same scene, seed, and horizon.
+4. [Evaluate the outputs](docs/evaluation.md). The `camera-loop evaluate` command checks the inputs, estimates the generated camera trajectory with VIPE, and reports position error, rotation error, DINO similarity, and LPIPS. A camera-only mode works with a pose plan and generated frames.
 
-For example, after preparing a SANA workspace and a batch, set `WORKSPACE`, `SANA_PYTHON`, `BATCH`, and `SCENE` to your local paths and scene ID. This command validates the inputs and prints the three native launch commands:
+RGC is exposed for SANA, Lyra-2, WorldWarp, Spatia, DreamX, and VMem. VMem's RGC arm writes commanded memory labels. Its separate measured-memory baseline uses `replan_measured`. Check the [adapter table](docs/models.md) for supported comparisons and calibration requirements.
 
-```bash
-camera-loop run-batch --model sana --workspace "$WORKSPACE" --python "$SANA_PYTHON" \
-  --batch "$BATCH" --scenes "$SCENE" --out outputs/sana-comparison \
-  --arms baseline correction correction_gainprojf
-```
-
-Add `--execute` to generate the videos in a fresh output directory. This uses the bundled SANA pilot schedule. Full paper experiments additionally require the matching scenes, horizons, checkpoints and evaluation settings.
-
-| Paper label | CLI arm | Behavior |
-| --- | --- | --- |
-| World model | `baseline` | Use the adapter's baseline commands. |
-| Re-Aim | `correction` | Rejoin the planned path from the estimated camera pose. |
-| Re-Aim + RGC | `correction_gainprojf` | Rejoin and divide translation and rotation offsets by their respective projected gains, each floored at one. |
-
-The RGC launcher is available for SANA, Lyra-2, WorldWarp, Spatia, DreamX, and VMem. VMem's RGC arm uses commanded memory labels. Its measured-memory experiment is a separate comparison. See [model-specific conventions and limitations](docs/models.md).
-
-## Code and evidence
-
-- [CPU comparison](examples/reaim.py), [camera correction](src/camera_loop/controller.py), and [shared gain implementation](src/camera_loop/bundled/templates/analysis/plan_base_restart_20261008/continuous_eval_20261029/scale_20261030/correction_v4_gaincum_20261109/gain_rule.py)
-- [Method reference](docs/paper_method_reference.md), [integration API](docs/integration.md), and [validation protocol](docs/validation.md)
-- [Historical model results](docs/results.md), [failures](docs/failures.md), and [ablations](docs/ablations.md)
-- [Upstream notices](NOTICE)
+The [controller](src/camera_loop/controller.py) implements the camera rejoin. The [CPU example](examples/reaim.py) shows how to use it with RGC. The [integration guide](docs/integration.md) describes camera conventions for adding a model. Upstream terms are in [NOTICE](NOTICE).

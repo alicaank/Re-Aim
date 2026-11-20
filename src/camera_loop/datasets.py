@@ -292,12 +292,21 @@ def import_batch(manifest, out, resize=False):
                 image = image.resize((864, 480), Image.Resampling.BILINEAR)
                 g["image_width"] = np.int64(864)
                 g["image_height"] = np.int64(480)
-            cap = captions(row.get("captions", {"0": row["caption"]}))
+            cap = captions(row["captions"] if "captions" in row else {"0": row["caption"]})
             record = {
                 k: v
                 for k, v in row.items()
                 if k not in ["geometry", "image", "captions"]
             }
+            if "frames_dir" in row:
+                source_frames = (source.parent / row["frames_dir"]).resolve()
+                if not source_frames.is_dir():
+                    raise ValueError(f"Missing recording directory for {name}: {source_frames}")
+                start = row.get("original_start")
+                if type(start) is not int or start < 0:
+                    raise ValueError("original_start must be a nonnegative integer")
+                record["frames_dir"] = str(source_frames)
+            record.setdefault("caption", cap["0"])
             record["image"] = f"images/{name}.png"
             if "metres_per_anchor_unit" in row:
                 g["metres_per_anchor_unit"] = positive(

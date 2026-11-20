@@ -1,12 +1,15 @@
 """Compare three camera controllers on a straight track with 2x motion gain."""
 
+import argparse
+from pathlib import Path
+
 import numpy as np
 
 from camera_loop import CameraAlignment, CorrectionSession, Measurement
 from camera_loop.gain import ProjectedGainFloor
 
 
-def run(mode):
+def run(mode, save_dir=None):
     plan = np.repeat(np.eye(4)[None], 41, axis=0)
     plan[:, 0, 3] = np.linspace(0, 1, len(plan))
     actual = plan[0].copy()
@@ -14,13 +17,18 @@ def run(mode):
     controller = CorrectionSession(CameraAlignment(1.0, evidence="simulation units"))
     gain = ProjectedGainFloor(commanded, actual)
     errors = []
+    trajectory = [actual.copy()]
 
     for start in range(0, 40, 10):
         ids = np.arange(start + 1, start + 11)
         commands = plan[ids]
         if start and mode != "World model":
             commands, _ = controller.correct(
-                Measurement(actual.copy(), start, {"passed": True, "source": "exact simulated pose"}),
+                Measurement(
+                    actual.copy(),
+                    start,
+                    {"passed": True, "source": "exact simulated pose"},
+                ),
                 planned_endpoint=plan[start],
                 future_reference_c2w=commands,
                 future_frame_ids=ids,
@@ -34,14 +42,31 @@ def run(mode):
         for frame, target in zip(ids, commands):
             actual[:3, 3] += 2 * (target[:3, 3] - commanded[:3, 3])
             commanded = target.copy()
+            trajectory.append(actual.copy())
             errors.append(np.linalg.norm(actual[:3, 3] - plan[frame, :3, 3]))
 
+    if save_dir is not None:
+        filename = {
+            "World model": "world-model",
+            "Re-Aim": "reaim",
+            "Re-Aim + RGC": "reaim-rgc",
+        }[mode]
+        np.savez_compressed(save_dir / filename, c2w=np.stack(trajectory))
+        if mode == "World model":
+            np.savez_compressed(save_dir / "target", c2w=plan)
     return float(np.mean(errors))
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--save-poses", type=Path, help="Write poses into a new directory"
+    )
+    output = parser.parse_args().save_poses
+    if output:
+        output.mkdir(parents=True, exist_ok=False)
     modes = ["World model", "Re-Aim", "Re-Aim + RGC"]
-    errors = [run(mode) for mode in modes]
+    errors = [run(mode, output) for mode in modes]
     print("Synthetic trajectory | mean position error (plan length = 1)")
     for mode, error in zip(modes, errors):
         print(f"{mode:14} {error:.4f}")

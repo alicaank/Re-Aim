@@ -18,9 +18,4 @@ workspace/
 *.npy
 *.tar.gz
 config.local*.json
-
-# Research artifacts are retained outside the source repository (docs/research_archive.md).
-/docs/artifacts/
-/docs/assets/
-/docs/results_publication_*.json
-/docs/queue_*_snapshot.json
+.pytest_cache/

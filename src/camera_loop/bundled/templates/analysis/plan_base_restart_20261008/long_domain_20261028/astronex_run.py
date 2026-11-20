@@ -57,15 +57,7 @@ def block_done(L, v, st, final=False):
 
 def _measure_and_act(L, v, st, gen, arm, vm, cur, done0, final):
     global WORKER
-    if v.get('response') is not None:
-        runtime=v['response'];n=min(BLOCK,NLAT-cur)
-        commands,event,measured=runtime.observe(gen,cur-1,cur+n)
-        v['measured'][cur-1]=measured;v['events'].append(event)
-        if n:
-            v['cmd'][cur:cur+n]=list(commands)
-            if event['commands_differ_from_bootstrap']:
-                vm[0,cur:cur+n]=torch.as_tensor(np.linalg.inv(commands)).to(vm)
-    elif arm['measure'] and not final:
+    if arm['measure'] and not final:
         if WORKER is None:WORKER=PoseWorker(CTX['out']/'observer'/v['name'])
         prefix=gen.copy();prefix[0]=v['frame0']
         with torch.random.fork_rng(devices=[0]):
@@ -91,8 +83,6 @@ def _measure_and_act(L, v, st, gen, arm, vm, cur, done0, final):
                    seconds=round(time.time() - st['t_start'], 1), decode_s=round(st['t_decode'], 1), measure_s=round(st['t_measure'], 1),
                    peak_GiB=round(torch.cuda.max_memory_allocated() / 2**30, 2),
                    settings=dict(config='inference/causal_consumer.yaml', latents=NLAT, hw=[OUT_H, OUT_W], kept_frames=fc.N_FRAMES))
-        if v.get('response') is not None:
-            log['native_commanded']=log.pop('commanded');log['online_response']=v['response'].metadata();v['response'].close()
         fc.save_run(dst, list(gen[1:]), v['frame0'], v['K'], log, preprocess='astronex')
         print(json.dumps(dict(scene=name, arm=CTX['arm']['name'], frames=len(gen) - 1, sec=log['seconds'], peak=log['peak_GiB'], events=len(v['events']))), flush=True)
 
@@ -129,17 +119,10 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--arms', type=Path, required=True); ap.add_argument('--arm', required=True)
     ap.add_argument('--out', type=Path, required=True); ap.add_argument('--videos', nargs='*', default=None)
     ap.add_argument('--seed', type=int, default=7); ap.add_argument('--min_free_gib', type=float, default=10.)
-    ap.add_argument('--online-response',action='store_true');ap.add_argument('--latents',type=int,default=24)
     a = ap.parse_args(); a.out = a.out.resolve(); arm = [x for x in json.load(open(a.arms)) if x['name'] == a.arm][0]
     flags = dict(measure=int(arm['name']!='native'), write=int(arm.get('write') == 'measured'), replan=int(bool(arm.get('replan'))))
     CTX.update(arm=arm, flags=flags, scale=None, out=a.out, seed=a.seed, min_free=a.min_free_gib)
-    if a.online_response:
-        if arm['name'] not in ('A','S','C') or arm.get('write')=='measured':raise ValueError('Online response requires command-only A/S/C arms')
-        if a.latents<16 or a.latents%8:raise ValueError('Complete Astronex blocks required')
-        NLAT=a.latents;fc.N_FRAMES=4*(NLAT-1)
-    else:
-        if a.latents!=24:raise ValueError('Custom duration requires online-response mode')
-        require_runtime_provider('astronex')
+    require_runtime_provider('astronex')
     from torchvision import transforms
     resize = transforms.Resize((OUT_H, OUT_W))                                         # = sample.py's I2V transform before ToTensor
     vids = a.videos or [s['name'] for s in fc.index()['scenes']]; rows = []; work = a.out / '_inputs' / arm['name']; work.mkdir(parents=True, exist_ok=True)
@@ -151,21 +134,13 @@ def main():
         Kn = np.array([[K[0, 0] / OUT_W, 0, K[0, 2] / OUT_W], [0, K[1, 1] / OUT_H, K[1, 2] / OUT_H], [0, 0, 1]], np.float32)
         frame0 = np.asarray(resize(src))
         anchor_depth = fc.remap_depth(sc['depth'],sc['K'],K,(OUT_H,OUT_W))
-        response=None
-        if a.online_response:
-            from camera_loop.native_response_runtime import BoundaryRuntime
-            response=BoundaryRuntime(plan,np.arange(NLAT)*4,model='astronex',arm=arm['name'],
-                out=a.out/arm['name']/f'{name}_s{a.seed}_response',anchor=frame0,K=K,depth=anchor_depth,workspace='@WORKSPACE@')
-            native=np.linalg.inv(response.control.commands)
-            unit_calibration=dict(status='physical_units_unidentified',mode='online_command_response')
-        else:
-            CTX['scale'], unit_calibration = runtime_anchor_scale('astronex', frame0, anchor_depth, K,
-                receipt=work/f'{name}_s{a.seed}_online_units.json')
-            native = np.stack([w2c_astro(c) for c in plan])
+        CTX['scale'], unit_calibration = runtime_anchor_scale('astronex', frame0, anchor_depth, K,
+            receipt=work/f'{name}_s{a.seed}_online_units.json')
+        native = np.stack([w2c_astro(c) for c in plan])
         np.savez(work/f'{name}_cam.npz',viewmats=native,Ks=np.stack([Kn]*NLAT))
         rows.append(dict(prompt=sc['prompts']['astronex'], image_path=sc['image_path'], camera_path=str(work / f'{name}_cam.npz'),
                          output_name=f'{name}.mp4', num_output_frames=NLAT - 1))
-        CTX['videos'].append(dict(name=name, plan=plan, response=response, cmd=[c.copy() for c in (plan if response is None else response.control.commands)], measured={}, events=[], K=K, unit_calibration=unit_calibration,
+        CTX['videos'].append(dict(name=name, plan=plan, cmd=[c.copy() for c in plan], measured={}, events=[], K=K, unit_calibration=unit_calibration,
                                   anchor_depth=anchor_depth, frame0=frame0, prompt=sc['prompts']['astronex']))
     if not rows:
         print('nothing to do'); return

@@ -196,24 +196,6 @@ class OnlineUnits(unittest.TestCase):
             callback(poses, depth, False, video)  # repeated context cannot reapply scale
         self.assertEqual(state, {})
 
-    def test_worldwarp_memory_converts_reference_to_current_native_units(self):
-        try:
-            import torch
-        except ImportError:
-            self.skipTest('Native memory boundary test requires optional torch')
-        plan = np.tile(np.eye(4), (3, 1, 1)); plan[:, 0, 3] = [0, 1, 2]
-        world = dict(prefix=np.zeros((3, 2, 2, 3)), plan=plan, out=None,
-                     scale_state=dict(status='identified', applied_native_units_per_reference_unit=3.))
-        scope = dict(np=np, WORLD=world, policy=lambda: 'identity',
-                     choose=lambda *args: SimpleNamespace(applied=True, poses=plan, reason='test'), append=lambda *args: None)
-        fn = extract_function(TEMPLATES/'analysis/measured_memory_20261101/memory_hooks.py', 'worldwarp_memory', scope)
-        old = torch.eye(4).repeat(1, 3, 1, 1)
-        result = fn(dict(rel_cache_poses=old, is_first_chunk=False, T_video=3))
-        np.testing.assert_allclose(result[0, :, 0, 3].numpy(), [-6, -3, 0])
-        np.testing.assert_allclose(plan[:, 0, 3], [0, 1, 2])
-        world['scale_state'].clear()
-        with self.assertRaisesRegex(ValueError, 'units unavailable'):
-            fn(dict(rel_cache_poses=old, is_first_chunk=False, T_video=3))
 
     def test_bundle_helper_matches_portable_source(self):
         import camera_loop.online_units as module

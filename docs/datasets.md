@@ -35,6 +35,8 @@ Create a JSON manifest like this, with paths relative to the manifest file:
 
 The numeric scales above are examples, **not defaults to copy**. Record your actual conversion/provenance. Do not infer metric scale from the desired camera displacement. Scene IDs must be unique letters/digits/underscores/hyphens; the package supports any number of scene entries subject to storage/runtime.
 
+To score DINO similarity and LPIPS, add `frames_dir` and `original_start` to each scene. The importer resolves `frames_dir` relative to the source manifest. For example, with `"frames_dir": "recordings/room_001", "original_start": 0`, `frame_00001.jpg` is the anchor and `frame_00002.jpg` is generated frame 1's reference. Supply consecutive recording frames on the same 864×480 grid as the imported anchor. With `--resize`, resize the recording to the same registered grid before scoring. Camera-only evaluation needs no recording images.
+
 Each source NPZ must contain:
 
 | Array | Required meaning |
@@ -115,7 +117,3 @@ camera-loop run-batch --workspace /data/camera-work \
 ```
 
 Before execution, Lyra's native child interpreter checks every selected caption and the expected tensor shape with CUDA hidden. Missing captions/cache/interpreter fail before generation. Single-scene `run` accepts the same `--t5-cache` flag. Direct native launchers can use `CAMERA_LYRA_T5_CACHE`; otherwise they retain the older shared-cache default.
-
-## What still prevents a turnkey claim
-
-The new importer, validation and sequential planning are CPU-tested, including synthetic scenes with a different source resolution. They do not substitute for a fresh-machine model run. Native CUDA extension installation, checkpoint completeness/downloads, all-model GPU smoke tests, scientific scale audits, and automatic independent scoring are still separate work. No dataset corpus/split relationship is inferred from a model name. Keep dataset provenance and checkpoint provenance with each experiment.

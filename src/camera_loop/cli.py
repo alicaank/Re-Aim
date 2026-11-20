@@ -1,8 +1,8 @@
-import argparse, json, subprocess
+import argparse, json, subprocess, sys
 from dataclasses import asdict
 from pathlib import Path
 from .registry import profiles
-from .integrations import materialize, doctor, command, RGC_ARM
+from .integrations import A, materialize, doctor, command, RGC_ARM
 from .alignment import align_model
 from .datasets import import_batch, validate_batch, fingerprint
 from .experiments import plan_experiment, execute_plan, check_lyra_cache
@@ -33,7 +33,14 @@ def main():
     a.add_argument(
         "--arm",
         default="correction",
-        choices=["baseline", "native", "sham", "correction", RGC_ARM, "replan_measured"],
+        choices=[
+            "baseline",
+            "native",
+            "sham",
+            "correction",
+            RGC_ARM,
+            "replan_measured",
+        ],
     )
     a.add_argument("--device", default="0")
     a.add_argument("--quality", choices=["report", "enforce"], default="enforce")
@@ -70,6 +77,33 @@ def main():
     a.add_argument("--quality", choices=["report", "enforce"], default="enforce")
     a.add_argument("--t5-cache")
     a.add_argument("--execute", action="store_true")
+    a = sub.add_parser(
+        "score-poses", help="Score registered c2w trajectory NPZs on CPU"
+    )
+    a.add_argument("--target", type=Path, required=True)
+    a.add_argument("--measured", type=Path, required=True)
+    a = sub.add_parser(
+        "evaluate", help="Score matched rollouts with the prepared VIPE evaluator"
+    )
+    a.add_argument("--workspace", type=Path, required=True)
+    a.add_argument(
+        "--python", default=sys.executable, help="Scoring environment interpreter"
+    )
+    a.add_argument("--batch", required=True)
+    a.add_argument("--model", choices=list(profiles()), required=True)
+    a.add_argument("--scene", required=True)
+    a.add_argument("--runs", nargs="+", metavar="LABEL=PATH", required=True)
+    a.add_argument(
+        "--horizon", type=int, required=True, help="Generated frames after the anchor"
+    )
+    a.add_argument("--seed", type=int, default=7)
+    a.add_argument("--out", required=True)
+    a.add_argument(
+        "--check-inputs", action="store_true", help="Validate inputs on CPU and exit"
+    )
+    a.add_argument(
+        "--camera-only", action="store_true", help="Compute VIPE pose metrics only"
+    )
     a = sub.add_parser(
         "align", help="Fit native units from registered depth arrays or native metadata"
     )
@@ -122,6 +156,40 @@ def main():
                 config.get("python"),
                 config.get("conda_root"),
             )
+        elif a.cmd == "score-poses":
+            from .evaluation import score_poses
+
+            result = score_poses(a.target, a.measured)
+        elif a.cmd == "evaluate":
+            script = a.workspace.resolve() / A / "vipe_eval_20261030" / "score.py"
+            if not script.is_file():
+                raise ValueError(
+                    "Missing evaluator. Prepare a fresh workspace with camera-loop prepare."
+                )
+            argv = [
+                a.python,
+                str(script),
+                "--model",
+                a.model,
+                "--scene",
+                a.scene,
+                "--batch",
+                a.batch,
+                "--horizon",
+                str(a.horizon),
+                "--seed",
+                str(a.seed),
+                "--out",
+                a.out,
+                "--runs",
+                *a.runs,
+            ]
+            if a.check_inputs:
+                argv.append("--check-inputs")
+            if a.camera_only:
+                argv.append("--camera-only")
+            subprocess.run(argv, check=True)
+            return
         elif a.cmd == "align":
             import numpy as np
 

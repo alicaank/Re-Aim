@@ -2,13 +2,7 @@
 
 These are pinned local integrations, not a claim that every checkpoint or new guard has passed end-to-end GPU validation. `native_callback` means the reusable API requires the model-owned factor; it will not guess one. Legacy launchers retain their original code paths.
 
-A separate [measured-memory runtime](measured_memory.md) now supports DreamX,
-LingBot, SANA, Astronex, Lyra, Matrix-Game, and WorldWarp. Its native write paths
-have local GPU checks, and its source is included in the relocated bundle.
-The table below describes the existing adapter contracts and historical route
-limits; those routes do not automatically enable the new memory policy.
-Short tracking comparisons have mixed results; see the
-[paper reference and claim ledger](paper_method_reference.md).
+
 
 | Model / upstream | Scale strategy in core | Native camera basis | State / limitations |
 |---|---|---|---|
@@ -24,18 +18,52 @@ Short tracking comparisons have mixed results; see the
 | [Memorizon](https://github.com/TingtingLiao/memorizon) (`memorizon`) | `metric_div4` | c2w / opencv | Recorded metric translation /4 mapping; projection audit pending. Historical launcher lacks native/sham controls. |
 | [WorldPlay](https://github.com/Tencent-Hunyuan/HY-WorldPlay) (`worldplay`) | `native_callback` | w2c / opencv | Native pose-unit contract unresolved. Explicit calibrated factor required; historical launcher lacks native/sham controls. |
 
-## Source pins
+## Install a baseline
 
-- **Matrix-Game 3.5**: `fbf7def0693ae14f745ba35bf2a26215d4ef991d`
-- **Lyra-2**: `9fffc9adc37004091ecf26ef03abfb3abdf4d59a`
-- **Spatia**: `f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3`
-- **VMem**: `39291e4f272f6b4f270691d930926ab5930f942e`
-- **Astronex**: `27584bf1a89da01ef35a03b48d83bc818d2adf2b`
-- **LingBot v2**: `1895d300d8ac936401689b26389f51cbd36530eb`
-- **DreamX-World**: `a1f4c6e5e45600718e5236955f2e0702e53fc275`
-- **WorldWarp**: `0396b801c278546d01a6618a18e5a5c2a154c0a1`
-- **SANA-WM**: `25adaaf02ad501c27be2c376b6b49b349cbcbe52`
-- **Memorizon**: `432a49e01c19be8fbd60eb37427ed07dfcc2db16`
-- **WorldPlay**: `1588e1336e842b03b0a7860c654ebd7c46bb065e`
+Choose the model key from the table above. In a copy of `config.example.json`, set `models` to that key alone. Set the conda and cache roots to local directories and configure the native and observer interpreters as described in [setup](setup.md). Run this from the Re-Aim repository, using the CPU environment:
 
-SolarWM and WorldCrafter are not listed as supported because no working local adapter was included. The source inventory is not a verified checkpoint training-corpus or held-out-split mapping.
+```bash
+export WORKSPACE="$PWD/workspace"
+camera-loop prepare --workspace "$WORKSPACE" --config config.local.json --clone
+```
+
+This creates the pinned sources and applies the bundled patches. Open the linked installation and checkpoint instructions for the **same revision** in the table below. Run the upstream installation commands inside its prepared source directory. Install CUDA/PyTorch and compiled extensions in that model's environment. Install the lightweight Re-Aim package in the native interpreter as well if the adapter imports shared helpers.
+
+| CLI key | Directory under the workspace | Installation and checkpoint instructions | Re-Aim + RGC |
+| --- | --- | --- | --- |
+| `matrixgame` | `sota_repos/matrix_game/Matrix-Game-3.5` | [Pinned guide](https://github.com/Riemann-Dynamics/Matrix-Game-3.5/blob/fbf7def0693ae14f745ba35bf2a26215d4ef991d/README.md) | No bundled RGC launcher |
+| `lyra` | `lyra` | [Pinned guide](https://github.com/nv-tlabs/lyra/blob/9fffc9adc37004091ecf26ef03abfb3abdf4d59a/Lyra-2/README.md) | Available |
+| `spatia` | `sota_repos/spatia` | [Pinned guide](https://github.com/ZhaoJingjing713/Spatia/blob/f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3/README.md) | Available |
+| `vmem` | `baselines/vmem` | [Pinned guide](https://github.com/runjiali-rl/vmem/blob/39291e4f272f6b4f270691d930926ab5930f942e/README.md) | Available |
+| `astronex` | `sota_repos/astronex_world` | [Pinned guide](https://github.com/Astronex-Robotics/Astronex-World/blob/27584bf1a89da01ef35a03b48d83bc818d2adf2b/README.md) | No bundled RGC launcher |
+| `lingbot` | `analysis/plan_base_restart_20261008/model_readiness_20261027/repos/lingbot` | [Pinned guide](https://github.com/robbyant/lingbot-world-v2/blob/1895d300d8ac936401689b26389f51cbd36530eb/README.md) | No bundled RGC launcher |
+| `dreamx` | `analysis/plan_base_restart_20261008/model_readiness_20261027/repos/dreamx` | [Pinned guide](https://github.com/AMAP-ML/DreamX-World/blob/a1f4c6e5e45600718e5236955f2e0702e53fc275/README.md) | Available |
+| `worldwarp` | `analysis/plan_base_restart_20261008/model_readiness_20261027/repos/worldwarp` | [Pinned guide](https://github.com/HyoKong/WorldWarp/blob/0396b801c278546d01a6618a18e5a5c2a154c0a1/README.md) | Available |
+| `sana` | `analysis/plan_base_restart_20261008/model_readiness_20261027/repos/sana` | [Pinned guide](https://github.com/NVlabs/Sana/blob/25adaaf02ad501c27be2c376b6b49b349cbcbe52/docs/sana_wm.md) | Available |
+| `memorizon` | `baselines/memorizon` | [Pinned guide](https://github.com/TingtingLiao/memorizon/blob/432a49e01c19be8fbd60eb37427ed07dfcc2db16/README.md) | No bundled RGC launcher |
+| `worldplay` | `sota_repos/worldplay` | [Pinned guide](https://github.com/Tencent-Hunyuan/HY-WorldPlay/blob/1588e1336e842b03b0a7860c654ebd7c46bb065e/README.md) | No bundled RGC launcher |
+
+For example, the SANA guide uses `bash ./environment_setup.sh sana`. Place its streaming and Gemma checkpoints at the adapter destinations listed in [the asset inventory](../src/camera_loop/bundled/asset_download_plan.json), or map those paths before preparation. The DA3 observer has its own interpreter and checkpoint. The [Lyra and Spatia guide](rtx-5090.md) includes the observer setup and Lyra caption-cache step.
+
+## Generate matched runs
+
+For a first SANA pilot you can generate a calibrated input on CPU. The fixture includes reference frames with known intrinsics, depth and camera poses:
+
+```bash
+python examples/make_test_scene.py --out outputs/test-scene
+export MODEL=sana BATCH="$PWD/outputs/test-scene/batch" SCENE=courtyard
+```
+
+This procedural scene is for checking installation and data flow. Use the benchmark scenes and recorded poses for paper comparisons.
+
+Set `MODEL` to the CLI key, `MODEL_PYTHON` to the absolute path of the installed native interpreter, `BATCH` to a prepared batch, and `SCENE` to a name in its index. Run these commands in the Re-Aim CPU environment:
+
+```bash
+camera-loop doctor --workspace "$WORKSPACE" --config config.local.json --model "$MODEL"
+camera-loop validate-batch --batch "$BATCH" --model "$MODEL" --scenes "$SCENE"
+camera-loop run-batch --model "$MODEL" --python "$MODEL_PYTHON" --workspace "$WORKSPACE" \
+  --batch "$BATCH" --scenes "$SCENE" --out "outputs/$MODEL" \
+  --arms baseline correction correction_gainprojf --execute
+```
+
+Use `--arms baseline correction` for models without the RGC launcher, or `--arms baseline` for a baseline-only run. For Lyra pass `--t5-cache /absolute/path/to/captions.pt` as well. Omit `--execute` to print the plan. Each run writes to a fresh directory under `outputs/MODEL/SCENE/ARM`. Native schedules and camera-unit requirements differ by model. WorldPlay and Astronex require an external native-unit provider before generation. See [camera units](online_units.md) and [scoring](evaluation.md).

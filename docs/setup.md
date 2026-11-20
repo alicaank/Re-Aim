@@ -1,4 +1,4 @@
-# Team setup
+# Install the native adapters
 
 For our single-GPU configuration, see [Spatia and Lyra-2 on the RTX 5090](rtx-5090.md).
 
@@ -10,7 +10,7 @@ Install the small core package in a control environment. Each video model and th
 4. Install each selected upstream environment from its pinned repository instructions. The bundle keeps copies of available requirement files under `upstream_metadata/`; they are references, not a universal cross-model lockfile.
 5. Obtain the model and observer assets, respecting their upstream terms. `bundled/asset_download_plan.json` and `weights_provenance.json` record known asset locations/revisions. They are inventory evidence; neither silently downloads files. Reuse teammate-provided caches or map asset paths to your own cache. Some adapters require precomputed text embeddings (the Lyra preparation scripts are included).
 6. Supply ffmpeg. Map `@WORKSPACE@/analysis/plan_base_restart_20261008/model_controls_20261024/bin/ffmpeg` to your installed executable, e.g. `/usr/bin/ffmpeg`. Alternatively put an executable at that materialized path. Model-output image/video libraries are installed in native environments.
-7. Run `camera-loop doctor`; it reports interpreter existence and source commit matches. It does **not** prove checkpoint completeness, CUDA compatibility or observer readiness. Review the printed run command, then start a short native-parity/correction pilot before long runs.
+7. Run `camera-loop doctor --workspace "$WORKSPACE" --config config.local.json`; it reports interpreter existence and source commit matches. It does **not** prove checkpoint completeness, CUDA compatibility or observer readiness. Review the printed run command, then start a short native-parity/correction pilot before long runs.
 
 The dated internal directory layout is retained only inside the relocated compatibility workspace, so the existing model adapters can share helpers. It is not a requirement for new integrations using `AlignedLoop`.
 
@@ -42,4 +42,4 @@ The wrapper refuses existing output directories. Use separate directories for ma
 
 ## Camera evaluation
 
-New scoring uses VIPE, separately from the DA3 correction observer. Preparation clones its pinned source, but you must install its native environment and cache its assets. Configure the VIPE interpreter using the example `path_map` or `CAMERA_VIPE_PYTHON`. See [VIPE setup and commands](evaluation.md). Historical VGGT dependencies are optional and are no longer cloned by default.
+New scoring uses VIPE, separately from the DA3 correction observer. Preparation clones its pinned source, but you must install its native environment and cache its assets. Configure the VIPE interpreter using the example `path_map` or `CAMERA_VIPE_PYTHON`. See [VIPE setup and commands](evaluation.md).

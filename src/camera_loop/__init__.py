@@ -19,11 +19,6 @@ from .registry import register_model
 
 __all__ += ["ModelHooks", "AlignedLoop", "register_model"]
 
-from .adaptive import AdaptiveController, RecoveryConfig
-from .evidence import EvidencePolicy, assess_window, select_window
-
-__all__ += ["AdaptiveController", "RecoveryConfig", "EvidencePolicy", "assess_window", "select_window"]
-
 from .memory import MemoryWrite, stage_memory_write, bridge_future
 
 __all__ += ["MemoryWrite", "stage_memory_write", "bridge_future"]
@@ -31,6 +26,3 @@ __all__ += ["MemoryWrite", "stage_memory_write", "bridge_future"]
 from .online_units import CalibrationUnavailable, OnlineDepthCalibration, runtime_anchor_scale
 
 __all__ += ["CalibrationUnavailable", "OnlineDepthCalibration", "runtime_anchor_scale"]
-
-from .online_response import OnlineAffineResponse, OnlineCommandController, ResponseConfig
-__all__ += ["OnlineAffineResponse", "OnlineCommandController", "ResponseConfig"]

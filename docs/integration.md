@@ -65,10 +65,7 @@ Use `history_labels='commanded'` if generated history is stored under the camera
 `stage_memory_write` validates a proposed historical pose update and
 `bridge_future` expresses desired future poses against the label actually
 committed by the host. The staging result is not a completed native cache write.
-Seven model-specific consumers are available through the separate
-[measured-memory launcher](measured_memory.md), now included in the source
-bundle. See [the paper method reference](paper_method_reference.md) for the
-transaction semantics, mathematical bridge, and implementation boundaries.
+
 
 With `layout='relative_chain'`, the result is consecutive relative transforms in the declared native basis. The `previous_command` callback must still return an **absolute** native pose. Model-specific temporal sampling, action encodings and Plücker features remain in the host callback.
 

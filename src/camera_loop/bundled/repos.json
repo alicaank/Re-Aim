@@ -65,12 +65,6 @@
     "commit": "25adaaf02ad501c27be2c376b6b49b349cbcbe52",
     "patch": "patches/sana.patch"
   },
-  "vggt": {
-    "path": "VGGT-World",
-    "url": "https://github.com/SimonSun0810/VGGT-World.git",
-    "commit": "2a42a713586bdacc4069f2c08943550a3f2c76ce",
-    "patch": "patches/vggt.patch"
-  },
   "vipe": {
     "path": "vipe",
     "url": "https://github.com/nv-tlabs/vipe.git",

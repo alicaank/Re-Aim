@@ -1,62 +1,83 @@
-# VIPE evaluation
+# Evaluate camera trajectories and generated videos
 
-VIPE measures the generated camera path offline. DA3 remains the inference-time correction observer. The source bundle includes the isolated VIPE worker, its scale-registration layer, a combined camera/DINO/LPIPS scorer, and the previous VGGT implementations for explicit historical reproduction. Default long/pair/gate entrypoints invoke VIPE; they do not fall back to VGGT on failure.
+## Check a trajectory on CPU
 
-## Environments and assets
+From the repository root, activate the quick-start environment and run:
 
-`camera-loop prepare --clone` now checks out `nv-tlabs/vipe` at commit `95a8816947602ddc26fcb7a80bea4f9313059578` into `<workspace>/vipe`, in addition to the selected models and shared Lyra observer source. It no longer clones VGGT by default. The VGGT pin is retained for historical work.
+```bash
+python examples/reaim.py --save-poses outputs/cpu-poses
+camera-loop score-poses --target outputs/cpu-poses/target.npz --measured outputs/cpu-poses/reaim-rgc.npz
+```
 
-Install VIPE using the installation instructions in that checkout and build its CUDA dependencies for your GPU. This package does not install its native environment or fetch its model weights. Our inspected local VIPE interpreter uses Python 3.10; that is an observed setup, not a guarantee for every CUDA/PyTorch combination. See the pinned source's `README.md`, `docs/` and `envs/` for its environment recipes. Upstream license notices are included under `bundled/upstream_metadata/vipe/`.
+The synthetic RGC run gives a mean position error of `0.0625` and zero rotation error. Substitute `world-model.npz` or `reaim.npz` to score the other two runs. Both inputs contain a `c2w` array of shape `[frames,4,4]` with corresponding frame IDs. They must already share the anchor frame, camera convention and length unit. For a saved VIPE trajectory use its registered `c2w` array. The scorer compares corresponding poses directly.
 
-The scorer and VIPE run in separate processes:
+## Install the video evaluator (Linux with CUDA)
 
-| Process | Requirements |
+Use the workspace created by `camera-loop prepare --clone`. If you already have generated videos and only need the evaluation tools, prepare a fresh workspace with one selected model using the [setup instructions](models.md#install-a-baseline). The evaluator uses two interpreters. VIPE reconstructs poses in a GPU subprocess. A separate scoring interpreter reads frames and computes the metrics.
+
+1. Build VIPE inside its pinned checkout. The upstream CUDA 12.8 recipe uses the following commands. Run these in a subshell to keep your control environment active afterwards.
+
+   ```bash
+   ( cd "$WORKSPACE/vipe" && conda env create -f envs/cu128.yml && conda run -n cu128 uv sync )
+   export CAMERA_VIPE_SOURCE="$WORKSPACE/vipe"
+   export CAMERA_VIPE_PYTHON="$WORKSPACE/vipe/.venv/bin/python"
+   ```
+
+   Use the [pinned VIPE installation guide](https://github.com/nv-tlabs/vipe/blob/95a8816947602ddc26fcb7a80bea4f9313059578/docs/installation.md) for compiler and system prerequisites. Populate VIPE's default SLAM and `unidepth-l` weights in the worker's Hugging Face cache before scoring. The evaluation worker runs offline. To check that its environment imports and parses the actual pipeline configuration, run:
+
+   ```bash
+   "$CAMERA_VIPE_PYTHON" "$WORKSPACE/analysis/plan_base_restart_20261008/vipe_eval_20261030/worker.py" --dry-run
+   ```
+
+2. Create the scoring environment. For camera-only scores, NumPy, SciPy, Pillow and OpenCV suffice for the parent process. The VIPE worker still requires CUDA.
+
+   ```bash
+   python -m venv .venv-score
+   export SCORE_PYTHON="$PWD/.venv-score/bin/python"
+   "$SCORE_PYTHON" -m pip install numpy scipy pillow opencv-python-headless
+   ```
+
+3. For appearance scores, install matching CUDA builds of Torch and torchvision plus LPIPS in the scoring environment. The following example uses CUDA 12.8. Set `CACHE_ROOT` to the same absolute `cache_root` used during workspace preparation. Run the last two commands with network access to cache DINOv2 ViT-S/14 source and weights and the LPIPS AlexNet weights before the offline evaluation.
+
+   ```bash
+   "$SCORE_PYTHON" -m pip install torch==2.9.1 torchvision==0.24.1 --index-url https://download.pytorch.org/whl/cu128
+   "$SCORE_PYTHON" -m pip install lpips
+   export TORCH_HOME="${CACHE_ROOT:?set CACHE_ROOT to the configured cache root}/torch"
+   "$SCORE_PYTHON" -c "import torch; torch.hub.load('facebookresearch/dinov2:main', 'dinov2_vits14', trust_repo=True)"
+   "$SCORE_PYTHON" -c "import lpips; lpips.LPIPS(net='alex')"
+   ```
+
+   Torch Hub stores the DINOv2 source under `torch/hub/facebookresearch_dinov2_main` and the checkpoint under `torch/hub/checkpoints`. Record the environment versions and hashes of the weights and cached source when sharing scores.
+
+## Score the generated frames
+
+The example below follows the SANA run from the [model guide](models.md#generate-matched-runs). Set `WORKSPACE`, `BATCH`, `SCENE`, and `SCORE_PYTHON` as above. SANA's pilot requests 169 frames. A horizon of 160 scores the first 160 generated frames after the conditioning frame.
+
+```bash
+runs="outputs/sana/$SCENE"
+args=(--workspace "$WORKSPACE" --python "$SCORE_PYTHON" --model sana
+      --batch "$BATCH" --scene "$SCENE" --seed 7 --horizon 160
+      --out "scores/sana/$SCENE.json"
+      --runs "baseline=$runs/baseline" "correction=$runs/correction"
+             "correction_gainprojf=$runs/correction_gainprojf")
+camera-loop evaluate "${args[@]}" --check-inputs
+camera-loop evaluate "${args[@]}"
+```
+
+The first command checks that the scorer can read each rollout and the sampled reference frames on CPU. The second runs VIPE and the image metrics. To score camera motion alone, add `--camera-only` to both commands. To score two arms, supply two `LABEL=PATH` arguments instead of three. Use a fresh output stem for each attempt.
+
+For another model, change the model key, horizon, and paths. Point each label directly at a `frames.npz` file containing `uint8 [N,H,W,3]` RGB, a video file, or a directory containing `frames.npz`, `SCENE_frames/frame_00000.png` onward, or `review_full.mp4`. Some adapters place videos in a nested arm directory. Each source must start at the conditioning frame and have at least `horizon + 1` consecutive frames from the same scene, seed and camera plan. Appearance scoring requires the corresponding recording frames described in the [dataset guide](datasets.md).
+
+## Read the output
+
+The JSON report records the estimator, protocol, seed, frame IDs, per-frame errors and per-arm summaries. Each arm also has a saved registered trajectory, raw VIPE trajectory, worker metadata and log in the adjacent `*_trajectories/` directory. Appearance runs produce a contact sheet.
+
+| Quantity | Definition |
 | --- | --- |
-| Scoring parent | NumPy, SciPy, Pillow, OpenCV, plus Torch/torchvision and LPIPS and the assets required by the bundled `evaluate_recorded.py` for image metrics |
-| VIPE worker | Pinned VIPE source, its native/CUDA dependencies, default SLAM model assets and `unidepth-l` assets |
+| Position error | Euclidean distance between estimated and planned camera centers in reference anchor-depth units. |
+| Rotation error | Angle in degrees between estimated and planned orientations. |
+| Mean and endpoint | The mean covers all generated frames and excludes the anchor. The endpoint uses the final scored frame. |
+| Path-length ratio | Measured distance traveled divided by planned distance traveled. Undefined for a stationary translation plan. |
+| DINO / LPIPS | Cosine similarity of normalized DINOv2 embeddings (higher is better) and LPIPS AlexNet distance (lower is better) against the recorded view. The long scorer samples up to 40 evenly spaced frame IDs plus available reporting horizons at 160, 320 and the final frame. |
 
-The worker uses the default VIPE pipeline with supplied fixed intrinsics, instance masking disabled, post depth alignment disabled and a 512-keyframe buffer. It runs SLAM plus dense trajectory filling and rejects missing poses or buffer overflow. It uses the optimized first-keyframe depth in the final SLAM gauge. The worker defaults to offline Hugging Face access; populate the required caches before evaluation. Check image-metric checkpoint paths in the materialized `training_runs/joint_samplerfix_20261012/evaluate_recorded.py` and configure `cache_root` or `path_map` before preparation. The extracted image scorer expects `torch/hub/facebookresearch_dinov2_main` and `torch/hub/checkpoints/dinov2_vits14_pretrain.pth` under that cache root, plus the LPIPS/AlexNet assets.
-
-Set interpreter/source paths explicitly, or use the corresponding example `path_map` entry when materializing:
-
-```bash
-export CAMERA_VIPE_PYTHON=/opt/envs/vipe/bin/python
-export CAMERA_VIPE_SOURCE=/data/camera-work/vipe
-export EVAL_ROOT=/data/camera-work/analysis/plan_base_restart_20261008
-
-# Imports/configuration only; explicitly hides CUDA and does not load models.
-"$CAMERA_VIPE_PYTHON" "$EVAL_ROOT/vipe_eval_20261030/worker.py" --dry-run
-```
-
-## Score a matched pair
-
-First prepare a registered batch using [the dataset guide](datasets.md) and generate both arms. Each source directory must contain `frames.npz` (`uint8 [N,H,W,3]`, RGB), `<scene>_frames/frame_00000.png` and following frames, or `review_full.mp4`. A video file path is also accepted. Frame zero must be the shared conditioning anchor, followed by the generated frames in order. Prefer original RGB arrays over video re-encoding when available, and keep the format identical across arms.
-
-```bash
-/opt/envs/scoring/bin/python "$EVAL_ROOT/long_domain_20261028/score_long.py" \
-  --batch /data/eval-batch --model spatia --scene scene-01 \
-  --horizon 480 --seed 7 \
-  --runs baseline=/data/results/spatia-baseline \
-         correction=/data/results/spatia-correction \
-  --out /data/evaluation/vipe/spatia-scene-01.json
-```
-
-`--horizon 480` means 481 input frames including frame zero. Set the horizon to the available matched generated length for short pilots. `--seed` records generation provenance; it does not regenerate either video. The pair entrypoint at `new_models_loop_20261028/score_pair.py` defaults to 160 generated frames; the long entrypoint defaults to 480. Pass `--horizon` explicitly for comparisons. Both use dense camera evaluation but retain different historical image-sampling schedules; do not pool their appearance scores without matching that schedule.
-
-The batch needs `index.json` plus `trajectories/<scene>.npz` with registered `w2c` (or `w2c_overrun`), pixel `intrinsics` and `anchor_depth`. Image metrics also need the recording frames indicated by each scene's `frames_dir` and `original_start`. See the dataset guide for naming and indexing. The current scorer assumes fixed intrinsics and known adapter crop/resize rules; a new camera preprocessing scheme needs its own `output_K` and reference-image transformation before use. It does not automatically support arbitrary changing intrinsics.
-
-The 80-frame scale-gate entrypoint at `continuous_eval_20261029/scale_20261030/measure80.py` runs VIPE on all 81 frames, then computes the existing gate statistics on frames `0,4,...,80`. Its inherited execution-ratio threshold is a protocol choice, not a VIPE calibration rule or a universal property of correct camera motion. It does not load the image-quality networks.
-
-## Outputs and interpretation
-
-The output JSON identifies `estimator: VIPE` and `evaluation_protocol: vipe_dense_anchor_depth_v1`. Each arm includes dense position/rotation errors, measured c2w poses, source path, path-length ratio and the anchor registration diagnostics. Long/pair camera means exclude frame zero and include every generated frame. Horizon summaries include camera mean/endpoint, rotation mean/endpoint, DINO and LPIPS. The 80-frame gate reports its subsampled camera arrays explicitly.
-
-Adjacent `<report>_trajectories/` files contain each arm's registered/raw c2w arrays, frame IDs, VIPE configuration, source commit, worker hash, timing, peak Torch allocation and worker log. A contact sheet is written for long/pair reports. Camera positions use fixed reference anchor-depth units, not verified metres.
-
-Registration uses the median reference/native anchor-depth ratio, requires at least 256 valid shared pixels and 20% coverage, and rejects a ratio p90/p10 greater than four. These are quality heuristics, not proof of correct reconstruction. The only rigid alignment is to the first pose; there is no trajectory-wide similarity fit that could hide execution error.
-
-Every VIPE worker exits before the parent loads DINO/LPIPS, avoiding simultaneous residency of the pose and image-metric networks. Run evaluation serially after generation on a shared GPU: the standalone scorer does not acquire your scheduler's lock. Input IPC files temporarily need RAM/disk proportional to the full RGB clip. Reports and trajectories reject overwrites; after a failed attempt use a new output stem and preserve the failed log for diagnosis.
-
-Do not compare a previous VGGT score directly with a new VIPE score as evidence of improvement. Re-evaluate both arms with the same frames, fixed intrinsics and protocol. Reference poses may themselves have been reconstructed by VIPE, so they are not asserted to be independent ground truth. Check trajectories, images, estimator failures and seed variation before interpreting a change.
-
-CPU tests cover registration invariance, preserving true motion error, invalid geometry rejection and model crop intrinsics. A local configuration/import dry run passed without initializing CUDA. Full GPU scoring and fresh-machine installation remain pending qualification at this release.
+The video protocol is `vipe_dense_anchor_depth_no_saturation_v2`. VIPE sees generated RGB and intrinsics. The scorer aligns the first pose and estimates one translation scale from registered anchor depth, excluding saturated depth estimates. It requires at least 256 valid pixels, 20% shared coverage, and a 90th-to-10th percentile depth-ratio spread of at most four. Inspect estimation failures and record the denominator when averaging across scenes. WorldScore uses a separate evaluation pipeline. Its paper-specific runner and configuration are absent from this release.

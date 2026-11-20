@@ -1,43 +1,7 @@
 [
   {
-    "path": "analysis/measured_memory_20261101/dreamx_hook.py",
-    "sha256": "ba1360c36d2c062c82f6bdea8132ed52b03a5dec2054bef82c5f7c9280ebab0f"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/dreamx_run.py",
-    "sha256": "322a00b6b2a16b60e61f6a997fca76ef95a5a9c6714d76857915cf7ea42606df"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/launch.py",
-    "sha256": "09875c3d328e333fb3a90d3eab9d1932be49734c4bd75df0b23e915a44caba1e"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/memory_contract.py",
-    "sha256": "a39c837b5033ff8adcb4f6a2f2058b8c70b7093901fa61d7fa9c42905c5568dd"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/memory_hooks.py",
-    "sha256": "46f1b97108d498a99dbd3f3556c5fcf74b65665cf04906d287720a1a1ad1a2eb"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/overlays.py",
-    "sha256": "3b334a09d78ab4668191339bf85f17150121318b8fd653cc5dca3c2c679e5ea0"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/runtime.py",
-    "sha256": "406ed1cee0323d952dec2aa3428572a58bb39e0f4a8b740e4c3a865d036713cc"
-  },
-  {
-    "path": "analysis/measured_memory_20261101/score_memory_pair.py",
-    "sha256": "256eecc8830377b73a4b63a38ba1ad87606f9909d8e592ad99a5bb2e6ab64fe4"
-  },
-  {
     "path": "analysis/plan_base_restart_20261008/astronex_plugins/astronex_fprime.py",
     "sha256": "fd6327ccb1b2bda9ff1ac729abf0d83b57df4b960f2d2e3f1163f215057f47c6"
-  },
-  {
-    "path": "analysis/plan_base_restart_20261008/astronex_plugins/measure_control.py",
-    "sha256": "18f3d400e4328761f830a3c2db035f4bb9bbeac17d988fca28bf071249eba617"
   },
   {
     "path": "analysis/plan_base_restart_20261008/baseline_loop_20261028/arms.json",
@@ -264,12 +228,12 @@
     "sha256": "bedfb5ae7e9f8432310560ca39f82e8f886b8b2d213aa8ae8c27a82fabb4010d"
   },
   {
-    "path": "analysis/plan_base_restart_20261008/continuous_eval_20261029/scale_20261030/measure80.py",
-    "sha256": "1b42efb2704acbbbb3cdeda4c3158057ef428c25dc60858def6a374a9b7ff472"
+    "path": "analysis/plan_base_restart_20261008/continuous_eval_20261029/scale_20261030/execution_metrics.py",
+    "sha256": "1c0222abb17736df938eaaa7f186d233620181678df467ceeb472a82a9667523"
   },
   {
-    "path": "analysis/plan_base_restart_20261008/continuous_eval_20261029/scale_20261030/measure80_vggt_legacy.py",
-    "sha256": "a6b020f8bbd1a1a816973f897e2b7ba67fb7a94e207b9e98424f5b619622b3b1"
+    "path": "analysis/plan_base_restart_20261008/continuous_eval_20261029/scale_20261030/measure80.py",
+    "sha256": "aafd5073a503e512e6b568a08721d5f92b54ea13da1c922551ffa87566d8e3b9"
   },
   {
     "path": "analysis/plan_base_restart_20261008/fair_common_20261025/astronex_fair.py",
@@ -296,16 +260,12 @@
     "sha256": "cce428f739f33ce8fac9cd4b64932dacb55d0c39adf0db11e557b23dbe0a1506"
   },
   {
-    "path": "analysis/plan_base_restart_20261008/fair_common_20261025/score_vggt_fair.py",
-    "sha256": "39d7f0e858f65b32f46c44780c1be0fe85f26e84b2d4800d435689deaf543a89"
-  },
-  {
     "path": "analysis/plan_base_restart_20261008/fair_common_20261025/vmem_fair.py",
     "sha256": "e2433c2d2c3639b1fb58e536b57cd48d6ff58bc359cf843d5c683f529b7e06a2"
   },
   {
     "path": "analysis/plan_base_restart_20261008/fair_common_20261025/wp_fair.py",
-    "sha256": "30afa5b6fdd42eee026071fdd5e679164c4e07dfe7c48fce89db7f0d94915fd2"
+    "sha256": "37fb31e550112109cac8161436c8a24878ff8d86f0dc92e4999504db7f9ea56a"
   },
   {
     "path": "analysis/plan_base_restart_20261008/long_domain_20261028/astronex_arms.json",
@@ -313,7 +273,7 @@
   },
   {
     "path": "analysis/plan_base_restart_20261008/long_domain_20261028/astronex_run.py",
-    "sha256": "fbdfb2f060fb0ad7338da3c56824c0b33fe6c958b4722a108985995e52f0535d"
+    "sha256": "ce5681e39761474df3dc360d69a6d1f0b6a037e4e2eeb113461790d14a3f0f63"
   },
   {
     "path": "analysis/plan_base_restart_20261008/long_domain_20261028/pack_video.py",
@@ -321,11 +281,7 @@
   },
   {
     "path": "analysis/plan_base_restart_20261008/long_domain_20261028/score_long.py",
-    "sha256": "e8445d91200a47506e183b66e7e089be4dffd648d44fbc3498ed62e1e2c37c3f"
-  },
-  {
-    "path": "analysis/plan_base_restart_20261008/long_domain_20261028/score_long_vggt_legacy.py",
-    "sha256": "ebdb78ddc70b3a16586e440c8476bea64424ac41a698635e4114d1515f2faf7b"
+    "sha256": "6aba86d8100f9e9920a142f9a711df9bcf58d70f3006078123b77cb677baeaa5"
   },
   {
     "path": "analysis/plan_base_restart_20261008/long_domain_20261028/spatia_run.py",
@@ -380,10 +336,6 @@
     "sha256": "9ace0ec9824ec598a70508e9f7ed8b1bd848faea8d41d893f20c16f3cdef359b"
   },
   {
-    "path": "analysis/plan_base_restart_20261008/memorizon_plugins/score_vggt.py",
-    "sha256": "2f0a05637a77cf771e2e998fd25b772e163dc61d0afbbfb6fae7851f7cf1e700"
-  },
-  {
     "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/common.py",
     "sha256": "96baadd7f37ef53ede20e6203005ce38ca199fa6ac13e4458c45daa1402f3d87"
   },
@@ -412,6 +364,10 @@
     "sha256": "659d8227ac3cbd45d8ad9dd40a335f22df43811352b312658261c29edf9f4c62"
   },
   {
+    "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/reference_crop.py",
+    "sha256": "db29a955bfcb7d98705a5ceae30afbc8a063b15fca427d56bb3060221ce0d623"
+  },
+  {
     "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/sana_kv_offload.py",
     "sha256": "211f4938aeb533968fb4acbe0fd76091e812d6c94ab2966dc0a7d358e4e72da9"
   },
@@ -421,11 +377,7 @@
   },
   {
     "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/score_pair.py",
-    "sha256": "e3559f4f4cbb53c027ca2bd1a7bbe43c83d8464ddea401bcb1eec57918b232b9"
-  },
-  {
-    "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/score_pair_vggt_legacy.py",
-    "sha256": "a45fd51422eaeb724590258de017d00922bb8c10367c69e2b7f128a07e014854"
+    "sha256": "6a93c1eb13f4d97a6ce0acc1af63228203b2796332521bcaf67feed538373fb3"
   },
   {
     "path": "analysis/plan_base_restart_20261008/new_models_loop_20261028/worldwarp_run.py",
@@ -449,7 +401,7 @@
   },
   {
     "path": "analysis/plan_base_restart_20261008/vipe_eval_20261030/score.py",
-    "sha256": "5088989a8af97b2c3bf63620ebcbf53ec8cbbc5c310e74f2cafda62baf4cfb8b"
+    "sha256": "38dfda686a8551d3a894f2af97e4a606483c3a19ae5a4b808a937a98094cf97a"
   },
   {
     "path": "analysis/plan_base_restart_20261008/vipe_eval_20261030/test_camera.py",

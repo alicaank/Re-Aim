@@ -44,25 +44,6 @@ class MatrixObserverLifetime(unittest.TestCase):
                 self.assertIsNone(scope['worker'])
                 self.assertEqual(calls,(['offload','start','measure','close'] if fail else ['offload','start','measure','close']*2))
 
-    def test_memory_worker_closes_before_geometry_rebuild_and_on_failure(self):
-        for fail in (False,True):
-            with self.subTest(fail=fail):
-                calls=[];ns=types.SimpleNamespace
-                def measure(*args):
-                    calls.append('measure')
-                    if fail:raise RuntimeError('memory failed')
-                    return ns(applied=False,poses=np.repeat(np.eye(4)[None],84,axis=0),reason='rejected'),{'passed':False}
-                scope=dict(np=np,MATRIX={},policy=lambda:'measured',measured_write=measure,
-                           close_observer=lambda out:calls.append('close'),append=lambda *a:calls.append('receipt'))
-                cb=function(ROOT/'measured_memory_20261101/memory_hooks.py','matrix_context',scope)
-                fake=ns(random=ns(fork_rng=lambda **kw:contextlib.nullcontext()))
-                local=dict(out='unused',lo=84,camera={},all_commands=np.repeat(np.eye(4)[None],85,axis=0),
-                           prefix=[],K=np.eye(3),depth=np.ones((2,2)),pipe=ns(load_models_to_device=lambda names:None))
-                with patch.dict('sys.modules',{'torch':fake}):
-                    if fail:
-                        with self.assertRaisesRegex(RuntimeError,'memory failed'):cb(local)
-                    else:cb(local)
-                self.assertEqual(calls,['measure','close']+([] if fail else ['receipt']))
 
 
 if __name__=='__main__':unittest.main()

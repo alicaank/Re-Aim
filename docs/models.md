@@ -2,8 +2,6 @@
 
 These are pinned local integrations, not a claim that every checkpoint or new guard has passed end-to-end GPU validation. `native_callback` means the reusable API requires the model-owned factor; it will not guess one. Legacy launchers retain their original code paths.
 
-
-
 | Model / upstream | Scale strategy in core | Native camera basis | State / limitations |
 |---|---|---|---|
 | [Matrix-Game 3.5](https://github.com/Riemann-Dynamics/Matrix-Game-3.5) (`matrixgame`) | `metric` | c2w / opencv | Metric metadata drives the adapter; native action encoding remains model-owned. Training corpus unresolved. |
@@ -43,7 +41,15 @@ This creates the pinned sources and applies the bundled patches. Open the linked
 | `memorizon` | `baselines/memorizon` | [Pinned guide](https://github.com/TingtingLiao/memorizon/blob/432a49e01c19be8fbd60eb37427ed07dfcc2db16/README.md) | No bundled RGC launcher |
 | `worldplay` | `sota_repos/worldplay` | [Pinned guide](https://github.com/Tencent-Hunyuan/HY-WorldPlay/blob/1588e1336e842b03b0a7860c654ebd7c46bb065e/README.md) | No bundled RGC launcher |
 
-For example, the SANA guide uses `bash ./environment_setup.sh sana`. Place its streaming and Gemma checkpoints at the adapter destinations listed in [the asset inventory](../src/camera_loop/bundled/asset_download_plan.json), or map those paths before preparation. The DA3 observer has its own interpreter and checkpoint. The [Lyra and Spatia guide](rtx-5090.md) includes the observer setup and Lyra caption-cache step.
+For SANA, run `bash ./environment_setup.sh sana` inside its prepared source directory. With the Hugging Face CLI installed and access to the listed checkpoints, download the weights to the directories the adapter reads:
+
+```bash
+weights="$WORKSPACE/analysis/plan_base_restart_20261008/model_readiness_20261027/weights"
+hf download Efficient-Large-Model/SANA-WM_streaming --local-dir "$weights/sana_streaming"
+hf download Efficient-Large-Model/gemma-2-2b-it --exclude gemma-2-2b-it.safetensors --local-dir "$weights/gemma2"
+```
+
+See [the asset inventory](../src/camera_loop/bundled/asset_download_plan.json) for other adapters. The DA3 observer has its own interpreter and checkpoint. The [Lyra and Spatia guide](rtx-5090.md) includes the observer setup and Lyra caption-cache step.
 
 ## Generate matched runs
 

@@ -197,11 +197,11 @@ def main(style="long"):
             continue
         trajectory = out.parent / (out.stem + "_trajectories") / (arm + ".npz")
         measured, meta = estimate(frames, ko, rd, trajectory)
-        pe, re = errors(measured, plan)
+        position_errors, rotation_errors = errors(measured, plan)
         record = dict(
             camera_frame_ids=list(range(h + 1)),
-            position_errors=pe.tolist(),
-            rotation_errors=re.tolist(),
+            position_errors=position_errors.tolist(),
+            rotation_errors=rotation_errors.tolist(),
             measured_c2w=measured.tolist(),
             anchor_scale=meta["registration"]["scale"],
             vipe=meta,
@@ -220,8 +220,8 @@ def main(style="long"):
                 measured_c2w=measured[ids].tolist(),
                 commanded_c2w=plan[ids].tolist(),
                 camera_frame_ids=ids.tolist(),
-                position_errors=pe[ids].tolist(),
-                rotation_errors=re[ids].tolist(),
+                position_errors=position_errors[ids].tolist(),
+                rotation_errors=rotation_errors[ids].tolist(),
                 vipe_anchor_depth_scale=meta["registration"]["scale"],
             )
         elif appearance:
@@ -230,10 +230,10 @@ def main(style="long"):
             )
         if style != "gate":
             record.update(
-                camera_mean=float(pe[1:].mean()),
-                camera_endpoint=float(pe[-1]),
-                rotation_mean=float(re[1:].mean()),
-                rotation_endpoint=float(re[-1]),
+                camera_mean=float(position_errors[1:].mean()),
+                camera_endpoint=float(position_errors[-1]),
+                rotation_mean=float(rotation_errors[1:].mean()),
+                rotation_endpoint=float(rotation_errors[-1]),
             )
         results[arm] = record
         del frames
@@ -277,16 +277,16 @@ def main(style="long"):
                     ds.extend((emb(gen) * emb(ref)).sum(-1).cpu().tolist())
                     ls.extend(np.asarray(lp(gen, ref)).tolist())
             entry = results[arm]
-            pe = np.array(entry["position_errors"])
-            re = np.array(entry["rotation_errors"])
+            position_errors = np.array(entry["position_errors"])
+            rotation_errors = np.array(entry["rotation_errors"])
             horizons = {}
             for end in sorted(set([x for x in [160, 320, h] if x <= h])):
                 mask = np.array(fid) <= end
                 horizons[str(end)] = dict(
-                    camera_mean=float(pe[1 : end + 1].mean()),
-                    camera_endpoint=float(pe[end]),
-                    rotation_mean=float(re[1 : end + 1].mean()),
-                    rotation_endpoint=float(re[end]),
+                    camera_mean=float(position_errors[1 : end + 1].mean()),
+                    camera_endpoint=float(position_errors[end]),
+                    rotation_mean=float(rotation_errors[1 : end + 1].mean()),
+                    rotation_endpoint=float(rotation_errors[end]),
                     dino=float(np.array(ds)[mask].mean()),
                     lpips=float(np.array(ls)[mask].mean()),
                 )

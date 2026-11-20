@@ -401,7 +401,7 @@
   },
   {
     "path": "analysis/plan_base_restart_20261008/vipe_eval_20261030/score.py",
-    "sha256": "38dfda686a8551d3a894f2af97e4a606483c3a19ae5a4b808a937a98094cf97a"
+    "sha256": "42b17460a0f9c21e17bc29f3916f15adf68af91da2a892493caef8b8f5edb0f8"
   },
   {
     "path": "analysis/plan_base_restart_20261008/vipe_eval_20261030/test_camera.py",

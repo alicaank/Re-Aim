@@ -56,4 +56,4 @@ The final summary gives the pass count and the reason for each skip. VMem parity
 
 RGC is exposed for SANA, Lyra-2, WorldWarp, Spatia, DreamX, and VMem. VMem's RGC arm writes commanded memory labels. Its separate measured-memory baseline uses `replan_measured`. Check the [adapter table](docs/models.md) for supported comparisons and calibration requirements.
 
-The [controller](src/camera_loop/controller.py) implements the camera rejoin. The [CPU example](examples/reaim.py) shows how to use it with RGC. The [integration guide](docs/integration.md) describes camera conventions for adding a model. Upstream terms are in [NOTICE](NOTICE).
+The [method walkthrough](docs/method.md) explains the camera rejoin and gain calculation. [Earlier baseline comparisons](docs/results.md) report scene counts, regressions and calibration limitations. The [CPU example](examples/reaim.py) shows how to use it with RGC. The [integration guide](docs/integration.md) describes camera conventions for adding a model. Upstream terms are in [NOTICE](NOTICE).

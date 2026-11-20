@@ -5,18 +5,6 @@ from PIL import Image
 
 
 def transform(x, model, depth=False, out_wh=None):
-    if model == "lingbot":
-        im = Image.fromarray(
-            np.asarray(x, dtype=np.float32)[:, 16:848]
-            if depth
-            else np.asarray(x)[:, 16:848]
-        )
-        return np.asarray(
-            im.resize(
-                out_wh or (832, 464),
-                Image.Resampling.BILINEAR if depth else Image.Resampling.BICUBIC,
-            )
-        )
     if model == "worldwarp":
         cropped = Image.fromarray(np.asarray(x)[:, 72:792])
         return np.asarray(

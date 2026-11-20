@@ -39,7 +39,6 @@ def main():
             "sham",
             "correction",
             RGC_ARM,
-            "replan_measured",
         ],
     )
     a.add_argument("--device", default="0")

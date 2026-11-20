@@ -52,6 +52,4 @@ class Camera(unittest.TestCase):
  def test_native_crop_intrinsics(self):
   k=np.array([[400.,0,432],[0,400,240],[0,0,1]])
   np.testing.assert_allclose(output_K('worldwarp',k,(864,480),(720,480))[:2,2],[360,240])
-  np.testing.assert_allclose(output_K('lingbot',k,(864,480),(832,464))[:2,2],[416,232])
-  np.testing.assert_allclose(output_K('spatia',k,(864,480),(1248,704))[:2,2],[624,352])
 if __name__=='__main__':unittest.main()

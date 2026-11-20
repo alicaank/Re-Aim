@@ -114,11 +114,11 @@ class OnlineUnits(unittest.TestCase):
                         anchor_sha256=kwargs['anchor_sha256'], native_unit_evidence='synthetic native geometry')
         with tempfile.TemporaryDirectory() as td:
             for i in range(2):
-                k, _ = runtime_anchor_scale('astronex', self.rgb, self.depth, self.K,
+                k, _ = runtime_anchor_scale('worldplay', self.rgb, self.depth, self.K,
                                              receipt=Path(td)/f'{i}.json', provider=provider)
                 self.assertAlmostEqual(k, (i+1)*3)
             with self.assertRaises(CalibrationUnavailable):
-                runtime_anchor_scale('astronex', self.rgb, self.depth, self.K,
+                runtime_anchor_scale('worldplay', self.rgb, self.depth, self.K,
                                      receipt=Path(td)/'0.json', provider=provider)
         self.assertEqual(len(calls), 2)
 
@@ -151,26 +151,6 @@ class OnlineUnits(unittest.TestCase):
         self.assertEqual([c['context'] for c in calls], [0, 1])
         self.assertEqual(calls[0]['available_frame'], 12)
 
-    def test_released_vmem_normalizer_cpu_parity(self):
-        native = Path(__file__).resolve().parents[2]/'baselines/vmem/modeling/pipeline.py'
-        if not native.exists():
-            self.skipTest('Optional released VMem checkout unavailable')
-        try:
-            import torch
-        except ImportError:
-            self.skipTest('Released VMem CPU parity requires optional torch')
-        fn = extract_function(native, 'get_translation_scaling_factor', dict(torch=torch))
-        pipe = SimpleNamespace(camera_scale=.4, device='cpu', dtype=torch.float32)
-        records = []
-        wrapped = capture_native_normalizer(lambda x: fn(pipe, x), records.append, lambda: 80)
-        for step in [0., .1, 2.]:
-            cameras = torch.eye(4).repeat(9, 1, 1)
-            cameras[:, 0, 3] = torch.arange(9)*step
-            expected_factor, expected = fn(pipe, cameras.clone())
-            actual_factor, actual = wrapped(cameras.clone())
-            self.assertEqual(float(actual_factor), float(expected_factor))
-            self.assertTrue(torch.equal(actual, expected))
-        self.assertNotEqual(records[1]['factor'], records[2]['factor'])
 
     def test_worldwarp_native_callback_rescales_each_window_once(self):
         try:
@@ -203,14 +183,7 @@ class OnlineUnits(unittest.TestCase):
                          (BASE/'fair_common_20261025/causal_units.py').read_bytes())
 
     def test_supported_launchers_remove_offline_defaults(self):
-        astro = (BASE/'long_domain_20261028/astronex_run.py').read_text()
-        self.assertNotIn("sc['native_units_per_anchor_unit']", astro)
-        self.assertNotIn("z['native_w2c_latent']", astro)
-        for relative in ['fair_common_20261025/vmem_fair.py', 'long_domain_20261028/vmem_run.py']:
-            source = (BASE/relative).read_text()
-            self.assertNotIn('22.867', source)
-            self.assertIn("choices=['window']", source)
-        for relative in ['fair_common_20261025/wp_fair.py', 'worldplay_plugins/wp_fprime.py']:
+        for relative in ['fair_common_20261025/wp_fair.py']:
             self.assertNotIn("add_argument('--unit'", (BASE/relative).read_text())
 
 

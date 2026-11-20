@@ -9,5 +9,12 @@
     "write": "commanded",
     "replan": true,
     "bank": "full"
+  },
+  {
+    "name": "replan_commanded_gainprojf",
+    "write": "commanded",
+    "replan": true,
+    "bank": "full",
+    "rgc": true
   }
 ]

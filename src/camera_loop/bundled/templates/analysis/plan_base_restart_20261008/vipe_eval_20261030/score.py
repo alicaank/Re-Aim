@@ -11,7 +11,7 @@ sys.path[:0] = [
     str(A / "fair_common_20261025"),
     str(A / "new_models_loop_20261028"),
     "@WORKSPACE@/training_runs/joint_samplerfix_20261012",
-    str(A / "memorizon_plugins"),
+    str(A / "pose_observer"),
     "@WORKSPACE@/training_runs/memory1500_resplat_20260905/python_deps",
 ]
 import fair_common as fc
@@ -68,25 +68,21 @@ def output_K(model, K, source_wh, out_wh):
     w, h = out_wh
     if model == "worldplay":
         return fc.k_worldplay(K, source_wh, out_wh)[0]
-    if model == "memorizon":
-        return fc.k_memorizon(K, source_wh, out_wh)[0]
     if model == "matrixgame":
         cw, ch = min(sw, w), min(sh, h)
         k = K.copy()
         k[0, 2] -= (sw - cw) // 2
         k[1, 2] -= (sh - ch) // 2
         return fc.scale_crop_K(k, w / cw, h / ch)
-    if model == "vmem":
-        return fc.k_vmem(K, source_wh, out_wh)[0]
     if model == "sana":
         s = max(w / sw, h / sh)
         rw = max(w, round(sw * s))
         rh = max(h, round(sh * s))
         return fc.scale_crop_K(K, rw / sw, rh / sh, (rw - w) // 2, (rh - h) // 2)
-    if model in ["lingbot", "worldwarp"]:
+    if model == "worldwarp":
         if source_wh != (864, 480):
             raise ValueError("Legacy crop needs 864x480 source")
-        left, cw = (16, 832) if model == "lingbot" else (72, 720)
+        left, cw = 72, 720
         k = K.copy()
         k[0, 2] -= left
         return fc.scale_crop_K(k, w / cw, h / sh)
@@ -95,7 +91,7 @@ def output_K(model, K, source_wh, out_wh):
 
 def reference_image(model, path, wh):
     im = np.asarray(Image.open(path).convert("RGB"))
-    if model in ["lingbot", "worldwarp", "dreamx", "sana"]:
+    if model in ["worldwarp", "dreamx", "sana"]:
         from reference_crop import transform
 
         return transform(im, model, out_wh=wh)
@@ -104,8 +100,9 @@ def reference_image(model, path, wh):
 
 def main(style="long"):
     p = argparse.ArgumentParser()
-    for k in ["batch", "model", "scene", "out"]:
+    for k in ["batch", "scene", "out"]:
         p.add_argument("--" + k, required=True)
+    p.add_argument("--model", choices=['lyra', 'sana', 'matrixgame', 'worldwarp', 'dreamx', 'worldplay'], required=True)
     p.add_argument("--runs", nargs="+", required=True)
     p.add_argument(
         "--horizon",

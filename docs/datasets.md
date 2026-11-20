@@ -45,7 +45,6 @@ Each source NPZ must contain:
 | `intrinsics` | Pixel-space `[3,3]` K or `[T,3,3]`; fixed intrinsics, positive focal lengths and zero skew |
 | `anchor_depth` | `[H,W]` z-depth registered to the **same source anchor image and K**, in the same units as camera translation |
 | `w2c_overrun` | Optional recorded continuation, including an identical `w2c` prefix. If absent, `w2c` is reused without extending it |
-| `native_w2c_latent` | Legacy archival field; the runtime Astronex adapter does not consume it |
 
 Choose the intended frame sampling/time correspondence before import. No frames or poses are extrapolated, no latent/RGB timeline is guessed, and no raw-video pose estimation is launched. Declare camera conventions honestly; the importer cannot detect mislabeled but numerically valid matrices. Convert c2w/OpenGL inputs before using this manifest.
 
@@ -53,7 +52,7 @@ Choose the intended frame sampling/time correspondence before import. No frames 
 camera-loop import-batch --manifest my-scenes.json --out /data/my-batch
 # If the calibrated source grid is not 864x480, opt into joint RGB/depth/K resizing:
 camera-loop import-batch --manifest my-scenes.json --out /data/my-resized-batch --resize
-camera-loop validate-batch --batch /data/my-batch --model spatia
+camera-loop validate-batch --batch /data/my-batch --model sana
 ```
 
 Import requires a new output directory and writes images, NPZs, captions, `index.json` and an import receipt. `--resize` stretches to the legacy **864×480** grid with consistent pixel-center intrinsics/depth transformation. It does not crop away content, alter 3D translation units or add geometry. This normalization exists because several old adapters have fixed 864×480 crop/resize assumptions. The portable controller API itself has no such input-size restriction. Variable zoom/intrinsics need an adapter change and are rejected by this importer.
@@ -67,34 +66,29 @@ Optional per-scene `captions` is a dictionary such as `{"0":"Initial caption", "
 | Model | Minimum main / overrun poses | Additional metadata |
 |---|---:|---|
 | Lyra-2 | 481 / 481 | `metres_per_anchor_unit`; exact caption embeddings prepared separately |
-| Spatia | 481 / 481 | Registered anchor depth for native MapAnything scale fit |
 | Matrix-Game 3.5 | 1 / 505 | `metres_per_anchor_unit` |
-| VMem | 41 / 41 | Native window normalization remains inside its adapter |
-| Astronex | 77 / 93 | `prompts.astronex`; runtime native-depth provider required separately (no provider ships) |
-| LingBot v2 | 1 / 173 | Scene caption; native path normalization |
 | DreamX | 1 / 165 | Scene caption; adapter-specific delayed feedback indexing |
 | WorldWarp | 1 / 161 | Registered anchor depth; runtime shared-frame scale transfer at each window (default launch: two chunks) |
 | SANA-WM | 169 / 169 | `metres_per_anchor_unit` |
-| Memorizon | 161 / 161 | `prompts.memorizon`, starting with `First-person perspective — character not visible. ` |
 | WorldPlay | 161 / 173 | `prompts.worldplay`, centered principal point; runtime native-depth provider required separately (no provider ships) |
 
-The lengths differ because native chunk schedules differ. They are not a fair-evaluation recommendation: compare matched common frame intervals and retain model-specific overrun outside the scored interval. WorldPlay and Astronex require runtime native geometry; batch scalar metadata cannot qualify the conversion. Memorizon estimates metric anchor depth at rollout time and rejects nonmetric predictions. WorldWarp transfers units through shared generated frames at each geometry window. See [causal runtime units](online_units.md) for implementation, failure behavior, and validation limits. Passing input validation does not establish runtime calibration or GPU qualification.
+The lengths differ because native chunk schedules differ. They are not a fair-evaluation recommendation: compare matched common frame intervals and retain model-specific overrun outside the scored interval. HY-WorldPlay requires a native camera-unit provider. WorldWarp transfers units through shared generated frames at each geometry window. See [causal runtime units](online_units.md) for implementation, failure behavior, and validation limits. Passing input validation does not establish runtime calibration or GPU qualification.
 
-The importer preserves explicit model-specific prompt/native metadata; it does not fabricate it from another model's prompt or a guessed scale. A dataset may pass validation for Spatia and fail for Astronex or WorldPlay. Missing fields are reported per scene before GPU execution.
+The importer preserves explicit model-specific prompt/native metadata; it does not fabricate it from another model's prompt or a guessed scale. A dataset may pass validation for DreamX-World and fail for HY-WorldPlay. Missing fields are reported per scene before GPU execution.
 
 ## Plan or run more scenes
 
 ```bash
 # Omitting --scenes selects every scene in index.json. Default: print the plan only.
 camera-loop run-batch --workspace /data/camera-work \
-  --model spatia --python /opt/envs/spatia/bin/python \
-  --batch /data/my-batch --out /data/experiments/spatia-test \
+  --model sana --python /opt/envs/sana/bin/python \
+  --batch /data/my-batch --out /data/experiments/sana-test \
   --arms baseline correction
 
 # Select scenes explicitly; add --execute to launch serially on one GPU.
 camera-loop run-batch --workspace /data/camera-work \
-  --model spatia --python /opt/envs/spatia/bin/python \
-  --batch /data/my-batch --out /data/experiments/spatia-subset \
+  --model sana --python /opt/envs/sana/bin/python \
+  --batch /data/my-batch --out /data/experiments/sana-subset \
   --scenes room_002 room_001 --arms baseline sham correction --execute
 ```
 

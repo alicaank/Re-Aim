@@ -13,7 +13,6 @@ F = A / "fair_common_20261025"
 V = C / "scale_20261030/correction_v3_20261030"
 GAIN_ADAPTERS = V.parent / "correction_v4_gaincum_20261109"
 RGC_ARM = "correction_gainprojf"
-RGC_MODELS = {"lyra", "sana", "spatia", "worldwarp", "dreamx", "vmem"}
 
 
 def materialize(workspace, config, clone=False):
@@ -38,8 +37,8 @@ def materialize(workspace, config, clone=False):
     }
     overrides = config.get("path_map", {})
     mappings = dict(values, **overrides)
-    # The same model interpreter may also launch native subprocesses (e.g. Spatia
-    # MapAnything/rendering). A Python override must relocate those references too.
+    # The same model interpreter may also launch native subprocesses (including observer
+    # subprocesses). A Python override must relocate those references too.
     for model, interpreter in config.get("python", {}).items():
         native = profile(model)["python"]
         key = native if native.startswith("@") else "@WORKSPACE@/" + native
@@ -188,19 +187,13 @@ def command(
     b = str(Path(batch).resolve())
     o = str(Path(out).resolve())
     rgc = arm == RGC_ARM
-    if rgc and model not in RGC_MODELS:
-        raise ValueError(f"{model} has no bundled RGC launcher")
     version = GAIN_ADAPTERS if rgc else V
-    if arm not in [RGC_ARM, "native", "baseline", "sham", "correction", "replan_measured"]:
+    if arm not in [RGC_ARM, "native", "baseline", "sham", "correction"]:
         raise ValueError("Unknown arm")
-    if arm == "replan_measured" and model != "vmem":
-        raise ValueError(
-            "Measured-memory writes are a separate VMem ablation, not generic correction"
-        )
-    if model in ["memorizon", "worldplay"] and arm not in ["baseline", "correction"]:
-        raise ValueError("Historical adapter has no verified native/sham controls")
-    if model in ["lyra", "spatia", "vmem"] and arm == "native":
-        raise ValueError("Use the released native entrypoint for native parity")
+    if model == "worldplay" and arm not in {"baseline", "correction", RGC_ARM}:
+        raise ValueError("WorldPlay supports baseline, Re-Aim and Re-Aim + RGC")
+    if model == "lyra" and arm == "native":
+        raise ValueError("Use the released Lyra entrypoint for native parity")
     if quality not in ["enforce", "report"]:
         raise ValueError("Invalid quality mode")
     common = ["--batch", b, "--scene", scene, "--out", o]
@@ -211,28 +204,6 @@ def command(
     elif model == "lyra":
         script = version / "lyra_v3.py"
         args = common + ["--arm", arm, "--frames", "481", "--observer-quality", quality]
-    elif model == "spatia":
-        script = version / "spatia_v3.py"
-        args = common + [
-            "--arms",
-            corrected,
-            "--seed",
-            "7",
-            "--num_frames",
-            "481",
-            "--first_round_frames",
-            "121",
-            "--round_frames",
-            "81",
-            "--hist_frames",
-            "9",
-            "--meas_stride",
-            "12",
-            "--observer-quality",
-            quality,
-            "--visibility-views-per-batch",
-            "1",
-        ]
     elif model == "worldwarp":
         script = version / "worldwarp_v3.py"
         args = common + [
@@ -265,44 +236,8 @@ def command(
             "--observer-quality",
             quality,
         ]
-    elif model == "vmem":
-        script = L / ("vmem_run_gainproj.py" if rgc else "vmem_run.py")
-        args = [
-            "--out",
-            o,
-            "--arms",
-            str(w / L / ("vmem_arms_re10k.json" if rgc else "vmem_arms.json")),
-            "--arm",
-            corrected,
-            "--scenes",
-            scene,
-            "--frames",
-            "40",
-            "--first_step",
-            "4",
-            "--nms",
-            "cfg",
-            "--autocast",
-            "1",
-            "--scale_mode",
-            "window",
-        ]
-    elif model == "astronex":
-        script = L / "astronex_run.py"
-        args = [
-            "--out",
-            o,
-            "--arms",
-            str(w / L / "astronex_arms.json"),
-            "--arm",
-            corrected,
-            "--videos",
-            scene,
-            "--seed",
-            "7",
-        ]
-    elif model in ["memorizon", "worldplay"]:
-        script = F / ("mem_fair.py" if model == "memorizon" else "wp_fair.py")
+    elif model == "worldplay":
+        script = F / "wp_fair.py"
         args = [
             "--out",
             o,
@@ -315,19 +250,11 @@ def command(
             "--seeds",
             "7",
         ]
+    elif model == "dreamx":
+        script = N / ("dreamx_run_gainproj.py" if rgc else "dreamx_run.py")
+        args = common + ["--seed", "7", "--arm", arm, "--latents", "42"]
     else:
-        script = N / ("lingbot_pair.py" if model == "lingbot" else "dreamx_run.py")
-        if rgc:
-            script = N / "dreamx_run_gainproj.py"
-        args = (
-            common
-            + ["--seed", "7"]
-            + (
-                ["--arms", arm, "--frames", "173"]
-                if model == "lingbot"
-                else ["--arm", arm, "--latents", "42"]
-            )
-        )
+        raise ValueError(f"No native launcher for {model!r}")
     env = dict(
         os.environ,
         CUDA_VISIBLE_DEVICES=device,

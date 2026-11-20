@@ -6,7 +6,7 @@ from PIL import Image
 R=Path(__file__).resolve().parent;REPO=Path('@WORKSPACE@/sota_repos/matrix_game/Matrix-Game-3.5');sys.path.insert(0,str(REPO));import infer as MG
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction'],required=True);ap.add_argument('--seed',type=int,default=7);ap.add_argument('--blocks',type=int,default=6);a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=False)
+ ap=argparse.ArgumentParser();ap.add_argument('--batch',type=Path,required=True);ap.add_argument('--scene',required=True);ap.add_argument('--out',type=Path,required=True);ap.add_argument('--arm',choices=['native','baseline','sham','correction','correction_gainprojf'],required=True);ap.add_argument('--seed',type=int,default=7);ap.add_argument('--blocks',type=int,default=6);a=ap.parse_args();a.out.mkdir(parents=True,exist_ok=False)
  row=next(s for s in json.load(open(a.batch/'index.json'))['scenes'] if s['name']==a.scene)
  with np.load(a.batch/'trajectories'/f'{a.scene}.npz') as z:
   plan=np.linalg.inv(z['w2c_overrun'].astype(np.float64))[:1+84*a.blocks];K=z['intrinsics'][0].astype(np.float32);depth=z['anchor_depth'].astype(np.float32);mpu=float(z['metres_per_anchor_unit']) if 'metres_per_anchor_unit' in z else float(row['metres_per_anchor_unit'])

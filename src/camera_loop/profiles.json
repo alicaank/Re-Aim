@@ -29,66 +29,6 @@
     "status": "local_adapter_available",
     "notes": "Final native DA3/MoGe anchor depth; 96 history padding frames are not generated time. v3 quality gate awaits GPU validation."
   },
-  "spatia": {
-    "label": "Spatia",
-    "scale_strategy": "anchor_depth",
-    "direction": "w2c",
-    "axes": "opencv",
-    "repo": {
-      "path": "sota_repos/spatia",
-      "url": "https://github.com/ZhaoJingjing713/Spatia.git",
-      "commit": "f75b10c9bb5f6b0cd779ec8c41ab33dd8382dba3",
-      "patch": "patches/spatia.patch"
-    },
-    "python": "baselines/venv_spatia/bin/python",
-    "status": "local_adapter_available",
-    "notes": "Anchor MapAnything depth; w2c translations in native units. v3 view batching awaits CUDA parity."
-  },
-  "vmem": {
-    "label": "VMem",
-    "scale_strategy": "native_callback",
-    "direction": "c2w",
-    "axes": "opengl",
-    "repo": {
-      "path": "baselines/vmem",
-      "url": "https://github.com/runjiali-rl/vmem.git",
-      "commit": "39291e4f272f6b4f270691d930926ab5930f942e",
-      "patch": "patches/vmem.patch"
-    },
-    "python": "baselines/venv_vmem/bin/python",
-    "status": "local_adapter_available",
-    "notes": "OpenGL cameras and native per-window translation normalization; obtain the factor from the released pipeline, do not freeze it globally."
-  },
-  "astronex": {
-    "label": "Astronex",
-    "scale_strategy": "native_callback",
-    "direction": "c2w",
-    "axes": "opencv",
-    "repo": {
-      "path": "sota_repos/astronex_world",
-      "url": "https://github.com/Astronex-Robotics/Astronex-World.git",
-      "commit": "27584bf1a89da01ef35a03b48d83bc818d2adf2b",
-      "patch": "patches/astronex.patch"
-    },
-    "python": "baselines/venv_astronex/bin/python",
-    "status": "local_adapter_available",
-    "notes": "Fresh runtime native geometry provider required; no provider ships with the pose-only encoder. Reference-fit scale and prepared native trajectory are not consumed."
-  },
-  "lingbot": {
-    "label": "LingBot v2",
-    "scale_strategy": "native_callback",
-    "direction": "c2w",
-    "axes": "opencv",
-    "repo": {
-      "path": "analysis/plan_base_restart_20261008/model_readiness_20261027/repos/lingbot",
-      "url": "https://github.com/robbyant/lingbot-world-v2.git",
-      "commit": "1895d300d8ac936401689b26389f51cbd36530eb",
-      "patch": "patches/lingbot.patch"
-    },
-    "python": "analysis/plan_base_restart_20261008/model_readiness_20261027/envs/lingbot/bin/python",
-    "status": "local_adapter_available",
-    "notes": "Relative camera chain divided by the frozen native path normalizer. Preserve the native relative/Plucker encoding."
-  },
   "dreamx": {
     "label": "DreamX-World",
     "scale_strategy": "native_callback",
@@ -134,23 +74,8 @@
     "status": "experimental",
     "notes": "Metric sidecar conversion, 24-frame chunks; preserve cached past camera conditioning. GPU validation pending."
   },
-  "memorizon": {
-    "label": "Memorizon",
-    "scale_strategy": "metric_div4",
-    "direction": "c2w",
-    "axes": "opencv",
-    "repo": {
-      "path": "baselines/memorizon",
-      "url": "https://github.com/TingtingLiao/memorizon.git",
-      "commit": "432a49e01c19be8fbd60eb37427ed07dfcc2db16",
-      "patch": "patches/memorizon.patch"
-    },
-    "python": "baselines/venv_memorizon/bin/python",
-    "status": "historical_controls_incomplete",
-    "notes": "Fresh metric anchor-depth correspondence /4; rejects nonmetric or invalid depth. Native/sham controls remain incomplete."
-  },
   "worldplay": {
-    "label": "WorldPlay",
+    "label": "HY-WorldPlay",
     "scale_strategy": "native_callback",
     "direction": "w2c",
     "axes": "opencv",

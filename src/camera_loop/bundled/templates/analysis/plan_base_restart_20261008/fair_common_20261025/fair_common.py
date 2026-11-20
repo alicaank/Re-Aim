@@ -86,14 +86,6 @@ def scale_crop_K(K, sx, sy, left=0., top=0.):
     return K2
 
 
-def k_memorizon(K, src_wh, out_wh):
-    """memorizon/pipeline.py encode_image: centre-crop to the output aspect, then LANCZOS resize (864x480 -> 864x480: identity)."""
-    (iw, ih), (w, h) = src_wh, out_wh
-    if iw / ih > w / h:
-        nw = int(ih * w / h); left, top, cw, ch = (iw - nw) // 2, 0, nw, ih
-    else:
-        nh = int(iw / (w / h)); left, top, cw, ch = 0, (ih - nh) // 2, iw, nh
-    return scale_crop_K(scale_crop_K(K, 1., 1., left, top), w / cw, h / ch), (left, top, left + cw, top + ch)
 
 
 def k_worldplay(K, src_wh, out_wh):
@@ -104,29 +96,12 @@ def k_worldplay(K, src_wh, out_wh):
     return scale_crop_K(K, nw / ow, nh / oh, left, top), (nw, nh, left, top)
 
 
-def k_vmem(K, src_wh, out_wh=(576, 576)):
-    """VMem utils/util.py transform_img_and_K(mode='crop') K branch: cover factor, ceil sizes, area resize, centre crop.
-    864x480 -> 1037x576 -> crop x 230..806."""
-    import math
-    (w, h), (W, H) = src_wh, out_wh
-    rb, ar = W / H, w / h
-    if rb >= 1.0:
-        f = min(H, W) / min(h, w) if ar >= rb else (max(H, W) / min(h, w) if ar < 1.0 else max(H, W) / max(h, w))
-    else:
-        raise NotImplementedError('portrait targets are not used')
-    rh, rw = int(math.ceil(f * h)), int(math.ceil(f * w))
-    ct = min(max(0, int(0.5 * rh) - H // 2), rh - H); cl = min(max(0, int(0.5 * rw) - W // 2), rw - W)
-    return scale_crop_K(K, rw / w, rh / h, cl, ct), (rw, rh, cl, ct)
 
 
-def k_astronex(K, src_wh, out_wh=(832, 480)):
-    """inference/sample.py I2V transform: torchvision Resize((480, 832)) = anisotropic stretch, no crop."""
-    (w, h), (W, H) = src_wh, out_wh
-    return scale_crop_K(K, W / w, H / h), (W, H)
 
 
 def se3_interp(delta, w):
-    """verbatim memorizon_plugins/gv_memorizon.py se3_interp (F' replanning: geodesic rotation + linear translation)."""
+    """verbatim pose_observer/gv_memorizon.py se3_interp (F' replanning: geodesic rotation + linear translation)."""
     from scipy.spatial.transform import Rotation, Slerp
     rot = Rotation.from_matrix(delta[:3, :3])
     r = Slerp([0., 1.], Rotation.concatenate([Rotation.identity(), rot]))(w).as_matrix()
@@ -142,7 +117,7 @@ def _pad44(e):
 
 
 def da3_window(da3, anchor, anchor_depth, frames, K, max_views=20, tail=16):
-    """memorizon_plugins/gv_memorizon2.py da3_window (poses only), unchanged except that NaN anchor-depth pixels (outside the
+    """pose_observer/gv_memorizon2.py da3_window (poses only), unchanged except that NaN anchor-depth pixels (outside the
     stored 448x256 field of view) are excluded from the scale median: command-free DA3 on [anchor + frames], per-frame c2w
     relative to the anchor view, ONE scale from DA3's anchor depth vs the stored gauge depth (median 1 = anchor-depth units)."""
     import torch
@@ -257,16 +232,9 @@ def preprocess(model, img, out_wh=None):
     the recording frames the DINO/LPIPS references are made from, so generated and reference frames share one geometry).
     Geometry = fair_common.k_<model> (verify_batch.py checks both against the official code paths)."""
     pil = Image.fromarray(np.asarray(img, np.uint8)); w, h = pil.size
-    if model == 'memorizon':                                                         # pipeline.encode_image: crop to aspect + LANCZOS
-        W, H = out_wh or (864, 480); _, (l, t, r, b) = k_memorizon(np.eye(3), (w, h), (W, H))
-        return np.asarray(pil.crop((l, t, r, b)).resize((W, H), Image.LANCZOS))
     if model == 'worldplay':                                                         # resize_center_crop_to_tensor
         W, H = out_wh or (960, 544); _, (nw, nh, l, t) = k_worldplay(np.eye(3), (w, h), (W, H))
         return np.asarray(pil.resize((nw, nh), Image.LANCZOS).crop((l, t, l + W, t + H)))
-    if model == 'astronex':                                                          # torchvision Resize((480, 832)) on PIL = BILINEAR
-        W, H = out_wh or (832, 480); return np.asarray(pil.resize((W, H), Image.BILINEAR))
-    if model == 'spatia':                                                            # spatia_fprime: PIL .resize((W, H)) default filter
-        W, H = out_wh or (1248, 704); return np.asarray(pil.resize((W, H)))
     if model == 'lyra':                                                              # cv2.resize INTER_LINEAR stretch
         import cv2
         W, H = out_wh or (832, 480); return cv2.resize(np.asarray(img, np.uint8), (W, H), interpolation=cv2.INTER_LINEAR)
@@ -277,12 +245,6 @@ def preprocess(model, img, out_wh=None):
         x = torch.from_numpy(np.array(a)).permute(2, 0, 1)[None].float()
         x = torch.nn.functional.interpolate(x, size=(H, W), mode='bilinear', align_corners=False, antialias=True)
         return x[0].permute(1, 2, 0).round().clamp(0, 255).byte().numpy()
-    if model == 'vmem':                                                              # load_img_and_K + transform_img_and_K(crop) + tensor_to_pil
-        import torch
-        W, H = out_wh or (576, 576); _, (rw, rh, cl, ct) = k_vmem(np.eye(3), (w, h), (W, H))
-        x = torch.from_numpy(np.asarray(img, np.float32) / 255.).permute(2, 0, 1)[None]
-        x = torch.nn.functional.interpolate(x, (rh, rw), mode='area')[0, :, ct:ct + H, cl:cl + W]
-        return np.clip(x.permute(1, 2, 0).numpy() * 255, 0, 255).astype(np.uint8)
     raise ValueError(model)
 
 

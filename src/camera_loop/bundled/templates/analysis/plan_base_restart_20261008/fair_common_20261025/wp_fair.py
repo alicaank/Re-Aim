@@ -19,11 +19,14 @@ Camera units require native geometry from a fresh runtime provider; no numeric d
 import argparse, json, os, sys, time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'fair_common_20261025'))
+gain_dir = Path(__file__).resolve().parent.parent / 'continuous_eval_20261029/scale_20261030/correction_v4_gaincum_20261109'
+sys.path.insert(0, str(gain_dir))
+from gain_rule import ProjectedGainFloor
 from causal_units import runtime_anchor_scale, require_runtime_provider
 import numpy as np, torch
 from PIL import Image
 WP = '@WORKSPACE@/sota_repos/worldplay'; sys.path[:0] = [WP, WP + '/wan']
-MP = '@WORKSPACE@/analysis/plan_base_restart_20261008/memorizon_plugins'; sys.path.insert(0, MP)
+MP = '@WORKSPACE@/analysis/plan_base_restart_20261008/pose_observer'; sys.path.insert(0, MP)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wan.inference.pipeline_wan_w_mem_relative_rope import WanPipeline
 from wan.models.dits.arwan_w_action_w_mem_relative_rope import WanTransformer3DModel
@@ -104,6 +107,7 @@ class Roller:
         self.anchor_depth = fc.remap_depth(sc['depth'], sc['K'], self.K, (H, W))
         self.unit, self.unit_calibration = runtime_anchor_scale('worldplay', self.anchor, self.anchor_depth, self.K, receipt=unit_receipt)
         self.cmd = self.plan.copy(); self.mem = self.cmd.copy(); self.measured = [None] * n_lat; self.measured[0] = np.eye(4); self.events = []
+        self.gain = ProjectedGainFloor(self.cmd[0], self.measured[0]) if arm.get("rgc") else None
         k = self.K.copy(); k[0, 0] /= k[0, 2] * 2; k[1, 1] /= k[1, 2] * 2; k[0, 2] = .5; k[1, 2] = .5; self.Kn = k   # pose_to_input normalisation
 
     def wp_rows(self, lo, hi):
@@ -129,6 +133,11 @@ class Roller:
                 delta = self.measured[lo - 1] @ np.linalg.inv(self.cmd[lo - 1])
                 for i, j in enumerate(range(lo, hi)):
                     self.cmd[j] = fc.se3_interp(delta, 1. - (i + 1) / C) @ self.plan[j]
+                if self.gain is not None:
+                    boundary = self.cmd[lo - 1]
+                    gains = self.gain.update(boundary, self.measured[lo - 1])
+                    self.cmd[lo:hi] = self.gain.apply(self.cmd[lo:hi], boundary)
+                    self.events.append(dict(kind='rgc', chunk=ci, **gains))
                 self.events.append(dict(kind='replan', chunk=ci, position_error=float(np.linalg.norm(delta[:3, 3]))))
             self.mem[lo:hi] = self.cmd[lo:hi]
             vm, ks, act = self.wp_rows(lo, hi)
@@ -163,6 +172,8 @@ def main():
     arms = [x for x in json.load(open(a.arms)) if not a.arm or x['name'] in a.arm]; a.out.mkdir(parents=True, exist_ok=True)
     scenes = a.scenes or [s['name'] for s in fc.index()['scenes']]
     require_runtime_provider('worldplay')
+    os.environ.setdefault('MASTER_ADDR', '127.0.0.1')
+    os.environ.setdefault('MASTER_PORT', '29541')
     wp = WorldPlay(); da3 = load_da3('cpu')
     for arm in arms:
         for scene in scenes:

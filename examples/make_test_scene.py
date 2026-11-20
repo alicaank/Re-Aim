@@ -58,9 +58,7 @@ def make_scene(root, count):
                 geometry="geometry.npz",
                 caption="The camera moves right past a green crate in front of a brick wall.",
                 prompts={
-                    "astronex": "The camera moves right past a green crate in front of a brick wall.",
                     "worldplay": "The camera moves right past a green crate in front of a brick wall.",
-                    "memorizon": "First-person perspective — character not visible. The camera moves right past a green crate.",
                 },
                 frames_dir="recording",
                 original_start=0,

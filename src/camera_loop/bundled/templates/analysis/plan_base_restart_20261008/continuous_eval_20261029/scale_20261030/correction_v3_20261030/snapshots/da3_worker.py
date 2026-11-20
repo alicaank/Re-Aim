@@ -1,27 +1,18 @@
-"""DA3 pose-measurement worker for spatia_fprime.py.
-
-Runs in venv_vmem: venv_spatia cannot import DA3 (missing evo, moviepy, e3nn, gsplat, pycolmap); venv_vmem is the venv in
-which vmem_fprime_fixed.py already runs DA3 from the Lyra-2 source tree (memorizon_plugins/realized_pose.load_da3).
-
-Measurement = memorizon_plugins/realized_pose.realized_poses, the same algorithm as gv_memorizon2.da3_window used by
-vmem_fprime_fixed.measure_new: DA3 on [anchor + evenly spaced earlier frames + query tail], intrinsics given, NO extrinsics
-given; poses re-expressed relative to the anchor view; scale fixed once per DA3 call by the median ratio of the given anchor
-depth to DA3's anchor depth (anchor_depth = ones -> 1/median(DA3 anchor depth) = anchor-median-depth units).
-The query frames are measured in chunks of `tail` (one DA3 call each), context = every earlier generated frame.
+"""Estimate camera poses from generated frames with DA3 in a separate interpreter.
 
 Protocol (one JSON object per line): worker prints  READY {...}  once DA3 is loaded (on CPU); then for each stdin line
   {"cmd": "measure", "req": <npz>, "out": <npz>}  -> reply {"ok": true, ...} after writing <out> (poses (Q,4,4), NaN = none)
   {"cmd": "quit"}                                -> exits
 req npz: anchor (H,W,3) u8, frames (N,H,W,3) u8 with frames[i] = video frame i+1, K (3,3) pixel K of these images,
          query (Q,) video frame indices >= 1, anchor_depth (h,w) f32 or size-0 (= keep DA3's own units), max_views, tail.
-DA3 is moved to the GPU for each request and back to the CPU afterwards (vmem_fprime_fixed.py:98), so it holds no GPU
-memory while Spatia denoises or MapAnything / the point renderer run.
+DA3 is moved to the GPU for each request and back to the CPU afterwards, so it holds no GPU
+memory during generator inference.
 """
 import json, os, sys, time, traceback
 import numpy as np
 import torch
 
-MP = '@WORKSPACE@/analysis/plan_base_restart_20261008/memorizon_plugins'
+MP = '@WORKSPACE@/analysis/plan_base_restart_20261008/pose_observer'
 if MP not in sys.path:
     sys.path.insert(0, MP)
 from realized_pose import load_da3, realized_poses          # noqa: E402

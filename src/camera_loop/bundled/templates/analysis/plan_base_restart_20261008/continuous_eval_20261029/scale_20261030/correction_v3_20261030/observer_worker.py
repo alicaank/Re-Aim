@@ -2,8 +2,8 @@
 import json,sys
 from pathlib import Path
 R=Path(__file__).resolve().parent
-meta=json.loads((R/'source_manifest.json').read_text())['spatia_da3_worker.py']
-source=(R/'snapshots/spatia_da3_worker.py').read_text()
+meta=json.loads((R/'source_manifest.json').read_text())['da3_worker.py']
+source=(R/'snapshots/da3_worker.py').read_text()
 old='from realized_pose import load_da3, realized_poses'
 assert source.count(old)==1
 source=source.replace(old,'from guarded_observer import realized_poses\nfrom realized_pose import load_da3')

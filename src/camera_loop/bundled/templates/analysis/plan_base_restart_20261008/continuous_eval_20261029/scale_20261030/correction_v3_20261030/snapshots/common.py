@@ -18,9 +18,9 @@ def rejoin(measured,previous_command,future_plan):
 class PoseWorker:
  def __init__(self,out):
   out=Path(out);out.mkdir(parents=True,exist_ok=True);self.out=out
-  root=R.parent/'spatia_plugins';self.log=open(out/'measurement.log','a')
+  root=R.parent/'pose_observer';self.log=open(out/'measurement.log','a')
   env=dict(os.environ,HF_HUB_OFFLINE='1');env.pop('LD_LIBRARY_PATH',None);env.pop('GV_DA3_FAKE',None)
-  self.p=subprocess.Popen(['@WORKSPACE@/baselines/venv_vmem/bin/python',str(root/'spatia_da3_worker.py')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.log,text=True,bufsize=1,env=env)
+  self.p=subprocess.Popen(['@WORKSPACE@/baselines/venv_vmem/bin/python',str(root/'da3_worker.py')],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.log,text=True,bufsize=1,env=env)
   line=self.p.stdout.readline();assert line.startswith('READY '),line
   info=json.loads(line[6:]);assert not info.get('fake');self.ready=info
  def measure(self,frames,K,anchor_depth):

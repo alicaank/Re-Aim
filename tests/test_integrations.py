@@ -50,8 +50,8 @@ class Integrations(unittest.TestCase):
             with self.assertRaises(ValueError):
                 materialize(w, {})
 
-    def test_all_eleven_launchers_materialize(self):
-        self.assertEqual(len(profiles()), 11)
+    def test_six_paper_launchers_materialize(self):
+        self.assertEqual(set(profiles()), set(['lyra', 'sana', 'matrixgame', 'worldwarp', 'dreamx', 'worldplay']))
         with tempfile.TemporaryDirectory() as td:
             w = Path(td) / "work"
             materialize(w, {})
@@ -61,9 +61,7 @@ class Integrations(unittest.TestCase):
                 )
                 self.assertTrue(Path(argv[1]).is_file(), model)
                 self.assertEqual(env["LONG_BATCH"], "/data/batch")
-                if model == "vmem":
-                    self.assertEqual(argv[argv.index("--arm") + 1], "replan_commanded")
-                if model in ["lyra", "spatia", "sana", "worldwarp"]:
+                if model in ["lyra", "sana", "worldwarp"]:
                     self.assertIn("--observer-quality", argv)
 
     def test_rectified_gain_launchers_in_relocated_workspace(self):
@@ -71,9 +69,9 @@ class Integrations(unittest.TestCase):
             "sana": ("sana_v3.py", "correction_gainprojf"),
             "lyra": ("lyra_v3.py", "correction_gainprojf"),
             "worldwarp": ("worldwarp_v3.py", "correction_gainprojf"),
-            "spatia": ("spatia_v3.py", "replan_commanded_gainprojf"),
+            "matrixgame": ("mg35_stream_run.py", "correction_gainprojf"),
             "dreamx": ("dreamx_run_gainproj.py", "correction_gainprojf"),
-            "vmem": ("vmem_run_gainproj.py", "replan_commanded_gainprojf"),
+            "worldplay": ("wp_fair.py", "replan_commanded_gainprojf"),
         }
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -86,30 +84,13 @@ class Integrations(unittest.TestCase):
                     self.assertTrue(launcher.is_file())
                     self.assertEqual(launcher.name, script)
                     self.assertIn(arm, argv)
-                    if model in {"sana", "lyra", "worldwarp", "spatia"}:
+                    if model in {"sana", "lyra", "worldwarp"}:
                         self.assertTrue((launcher.parent / "gain_rule.py").is_file())
-                    if model == "vmem":
+                    if model == "worldplay":
                         arms = json.loads(Path(argv[argv.index("--arms") + 1]).read_text())
                         record = next(item for item in arms if item["name"] == arm)
-                        self.assertTrue(record["floor"] and record["gainproj"])
-            with self.assertRaisesRegex(ValueError, "no bundled RGC launcher"):
-                command(root, "matrixgame", sys.executable, root / "batch",
-                        "scene", root / "out", "correction_gainprojf")
+                        self.assertTrue(record["rgc"] and record["replan"])
 
-    def test_vmem_measured_arm_is_explicit(self):
-        argv, _ = command(
-            "/w", "vmem", "/python", "/batch", "scene", "/out", "replan_measured"
-        )
-        self.assertEqual(argv[argv.index("--arm") + 1], "replan_measured")
-        with self.assertRaises(ValueError):
-            command(
-                "/w", "spatia", "/python", "/batch", "scene", "/out", "replan_measured"
-            )
-
-    def test_historical_control_limits(self):
-        for model in ["memorizon", "worldplay"]:
-            with self.assertRaises(ValueError):
-                command("/w", model, "/python", "/batch", "scene", "/out", "sham")
 
     def test_bundle_has_no_model_assets_or_machine_paths(self):
         forbidden = {".pt", ".pth", ".ckpt", ".safetensors", ".mp4", ".npz", ".npy"}

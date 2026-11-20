@@ -1,20 +1,14 @@
-# Earlier baseline and Re-Aim comparisons
+# Camera tracking on DL3DV
 
-These runs compare the frozen world model with the first Re-Aim implementation. They predate RGC and use the cohorts and calibration protocols listed below. The VMem run also updates its memory with measured camera poses. The table reports the relative change in mean position error across matched scenes. A negative value means lower error.
+Mean position error over the 52 DL3DV scenes (480 frames) reported on the [project page](https://alicaank.github.io/camera-feedback/#results-h). Lower values indicate closer tracking.
 
-| Model / cohort | Seed | Valid position pairs | Mean position change |
+| World model | Baseline | Re-Aim | Re-Aim + RGC |
 | --- | ---: | ---: | ---: |
-| DreamX / RE10K160 | 7 | 10 | -32.5% |
-| LingBot / RE10K160 | 7 | 10 | -46.1% |
-| LingBot / RE10K160 | 107 | 6 | -29.6% |
-| MatrixGame / RE10K160 | 7 | 10 | -7.4% |
-| MatrixGame / DL3DV480 | 7 | 7 | -43.0% |
-| Astronex / MinWM76 | 7 | 5 | -10.7% |
-| VMem / RE10K40, commands + measured memory | 7 | 10 | -25.1% |
-| Lyra / VIPE v3, 480 | 7 | 5 | -54.5% |
-| SANA / VIPE v3, 160 | 7 | 9 | -52.3% |
-| Spatia / VIPE v3, 480 | 7 | 7 | +6.1% |
+| Lyra-2 | 0.083 | 0.029 | 0.017 |
+| SANA-WM | 1.032 | 0.142 | 0.056 |
+| Matrix-Game 3.5 | 0.157 | 0.039 | 0.046 |
+| WorldWarp | 0.263 | 0.202 | 0.190 |
+| DreamX-World | 0.229 | 0.069 | 0.078 |
+| HY-WorldPlay | 1.066 | 0.046 | 0.060 |
 
-Of 80 historical pairs, 79 had valid position estimates for both arms. One SANA comparison lacked a position estimate. In 21 pairs, Re-Aim increased the mean position error. Eight more showed a tradeoff between mean and endpoint error. The Astronex run used reference motion for calibration.
-
-Tracking scores can also miss a change in scene layout. In DreamX and SANA scene `e43058cb` (seed 7), both arms missed the planned kitchen traversal. In MatrixGame scene `0238de14`, both videos showed a seam that was partly attributable to decoding. When inspecting a new comparison, review the generated video alongside the per-frame trajectory and recording. See the [evaluation guide](evaluation.md).
+These are the published measurements. The [model guide](models.md) lists the bundled pilot schedules and [evaluation](evaluation.md) describes how to score new runs.

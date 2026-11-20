@@ -14,7 +14,7 @@ class VipeEvaluation(unittest.TestCase):
     def test_relocated_registration_and_entrypoints(self):
         with tempfile.TemporaryDirectory() as td:
             w = Path(td) / 'work'
-            materialize(w, {'models': ['spatia']})
+            materialize(w, {'models': ['sana']})
             evaluator = w / A / 'vipe_eval_20261030'
             env = dict(os.environ, CUDA_VISIBLE_DEVICES='')
             result = subprocess.run(
@@ -37,7 +37,7 @@ class VipeEvaluation(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td, patch(
             'camera_loop.integrations.subprocess.run'
         ) as run:
-            materialize(Path(td) / 'work', {'models': ['spatia']}, clone=True)
+            materialize(Path(td) / 'work', {'models': ['sana']}, clone=True)
             commands = [call.args[0] for call in run.call_args_list]
             clones = [cmd for cmd in commands if cmd[:2] == ['git', 'clone']]
             self.assertTrue(any('https://github.com/nv-tlabs/vipe.git' in cmd for cmd in clones))

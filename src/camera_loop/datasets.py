@@ -15,15 +15,10 @@ from .registry import profile
 # Required recorded poses for the default native schedules in integrations.command.
 REQUIREMENTS = {
     "lyra": (481, 481),
-    "spatia": (481, 481),
     "matrixgame": (1, 505),
-    "vmem": (41, 41),
-    "astronex": (77, 93),
-    "lingbot": (1, 173),
     "dreamx": (1, 165),
     "worldwarp": (1, 161),
     "sana": (169, 169),
-    "memorizon": (161, 161),
     "worldplay": (161, 173),
 }
 METRIC = {"lyra", "sana", "matrixgame"}
@@ -197,23 +192,17 @@ def validate_batch(batch, model=None, scenes=None):
                     rtol=1e-6,
                 ):
                     raise ValueError("Index and NPZ metric conversions disagree")
-            if model in {"memorizon", "worldplay", "astronex"}:
+            if model == "worldplay":
                 prompt = row.get("prompts", {}).get(model)
                 if not isinstance(prompt, str) or not prompt.strip():
                     raise ValueError(f"Missing prompts.{model}")
-                if model == "memorizon" and not prompt.startswith(
-                    "First-person perspective — character not visible. "
-                ):
-                    raise ValueError(
-                        "Memorizon prompt needs the native first-person prefix"
-                    )
             if model == "worldplay" and not np.allclose(
                 g["intrinsics"][0, :2, 2], [432, 240], atol=1e-5
             ):
                 raise ValueError(
                     "Historical WorldPlay normalization assumes a centered principal point"
                 )
-            # Astronex/WorldPlay units are identified at runtime, never from
+            # WorldPlay units are identified at runtime, never from
             # recorded native poses or scalar metadata supplied by the batch.
             result["scenes"].append(
                 dict(

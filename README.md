@@ -45,7 +45,7 @@ python -m pip install '.[test]'
 python -m pytest -q -rs tests
 ```
 
-The final summary gives the pass count and the reason for each skip. VMem parity requires its optional upstream source checkout. GitHub Actions also runs the suite and both examples on Python 3.10, 3.11, and 3.12.
+The final summary gives the pass count and the reason for each skip. GitHub Actions also runs the suite and both examples on Python 3.10, 3.11, and 3.12.
 
 ## Generate and score videos
 
@@ -54,6 +54,6 @@ The final summary gives the pass count and the reason for each skip. VMem parity
 3. [Generate matched runs](docs/models.md#generate-matched-runs). Use `baseline` for the world model, `correction` for Re-Aim, and `correction_gainprojf` for Re-Aim + RGC. Each comparison uses the same scene, seed, and horizon.
 4. [Evaluate the outputs](docs/evaluation.md). The `camera-loop evaluate` command checks the inputs, estimates the generated camera trajectory with VIPE, and reports position error, rotation error, DINO similarity, and LPIPS. A camera-only mode works with a pose plan and generated frames.
 
-RGC is exposed for SANA, Lyra-2, WorldWarp, Spatia, DreamX, and VMem. VMem's RGC arm writes commanded memory labels. Its separate measured-memory baseline uses `replan_measured`. Check the [adapter table](docs/models.md) for supported comparisons and calibration requirements.
+RGC is exposed for all six DL3DV models in the paper: Lyra-2, SANA-WM, Matrix-Game 3.5, WorldWarp, DreamX-World and HY-WorldPlay. The [model guide](docs/models.md) lists the camera-unit requirements and verification status for each adapter.
 
-The [method walkthrough](docs/method.md) explains the camera rejoin and gain calculation. [Earlier baseline comparisons](docs/results.md) report scene counts, regressions and calibration limitations. The [CPU example](examples/reaim.py) shows how to use it with RGC. The [integration guide](docs/integration.md) describes camera conventions for adding a model. Upstream terms are in [NOTICE](NOTICE).
+The [method walkthrough](docs/method.md) explains the camera rejoin and gain calculation. [Paper results](docs/results.md) report mean position error for each model and arm. The [CPU example](examples/reaim.py) shows how to use it with RGC. The [integration guide](docs/integration.md) describes camera conventions for adding a model. Upstream terms are in [NOTICE](NOTICE).

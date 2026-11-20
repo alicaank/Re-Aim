@@ -1,6 +1,6 @@
 # Install the native adapters
 
-For our single-GPU configuration, see [Spatia and Lyra-2 on the RTX 5090](rtx-5090.md).
+For our single-GPU configuration, see [Lyra-2 on the RTX 5090](rtx-5090.md).
 
 Install the small core package in a control environment. Each video model and the pose observer retain their own CUDA/PyTorch environments; installing the core does not install them.
 
@@ -36,7 +36,7 @@ Dataset/checkpoint provenance still needs to be verified per experiment. Inclusi
 
 ## Controls
 
-`baseline`, `sham` and `correction` exist where the bundled native adapter supports them. VMem's `replan_measured` is an explicit separate memory-label ablation. Generic `correction` maps to `replan_commanded`. Memorizon and WorldPlay's historical adapters expose only baseline/correction; the launcher rejects a claimed sham/native arm for them. The upstream native entrypoint is required for Lyra/Spatia/VMem native parity.
+Use `baseline`, `correction` and `correction_gainprojf` for the three arms in the paper. To compare Lyra-2 with its upstream native entry point, follow its pinned installation guide.
 
 The wrapper refuses existing output directories. Use separate directories for matched arms and keep their calibration evidence identical. No queue manager, automatic cleanup, environment installer or training job is started by `prepare`.
 

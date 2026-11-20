@@ -96,7 +96,7 @@ class Datasets(unittest.TestCase):
         a["intrinsics"] = a["intrinsics"][:10]
         a["w2c_overrun"] = a["w2c_overrun"][:10]
         np.savez(q, **a)
-        r = validate_batch(self.batch, "spatia", ["scene_b"])
+        r = validate_batch(self.batch, "lyra", ["scene_b"])
         self.assertFalse(r["passed"])
         self.assertIn("481", str(r))
 
@@ -106,9 +106,9 @@ class Datasets(unittest.TestCase):
         a = read_arrays(q)
         a["w2c_overrun"][4, 0, 3] += 2
         np.savez(q, **a)
-        self.assertFalse(validate_batch(self.batch, "spatia", ["scene_a"])["passed"])
+        self.assertFalse(validate_batch(self.batch, "sana", ["scene_a"])["passed"])
         Image.new("RGB", (128, 72)).save(self.batch / "images/scene_b.png")
-        self.assertFalse(validate_batch(self.batch, "spatia", ["scene_b"])["passed"])
+        self.assertFalse(validate_batch(self.batch, "lyra", ["scene_b"])["passed"])
 
     def test_duplicate_or_unsafe_ids_rejected(self):
         for name in ["scene_a", "../escape"]:
@@ -125,7 +125,7 @@ class Datasets(unittest.TestCase):
         py.write_text("placeholder")
         plan = plan_experiment(
             w,
-            "spatia",
+            "sana",
             str(py),
             self.batch,
             self.root / "results",
@@ -162,27 +162,17 @@ class Datasets(unittest.TestCase):
     def test_changed_batch_invalidates_plan(self):
         self.make()
         plan = plan_experiment(
-            "/w", "spatia", "/python", self.batch, self.root / "results"
+            "/w", "sana", "/python", self.batch, self.root / "results"
         )
         p = self.batch / "captions/scene_a.json"
         p.write_text(json.dumps({"0": "Changed caption"}))
         with self.assertRaisesRegex(ValueError, "changed"):
             execute_plan(plan)
 
-    def test_python_override_relocates_spatia_child_interpreters(self):
-        w = self.root / "workspace"
-        materialize(
-            w, {"models": ["spatia"], "python": {"spatia": "/opt/custom/bin/python"}}
-        )
-        text = (
-            w / "analysis/plan_base_restart_20261008/long_domain_20261028/spatia_run.py"
-        ).read_text()
-        self.assertIn("/opt/custom/bin/python", text)
-        self.assertNotIn(str(w / "baselines/venv_spatia/bin/python"), text)
 
     def test_clone_initializes_lyra_runtime_submodules_at_pinned_checkout(self):
         with patch("camera_loop.integrations.subprocess.run") as run:
-            materialize(self.root / "cloned", {"models": ["spatia"]}, clone=True)
+            materialize(self.root / "cloned", {"models": ["sana"]}, clone=True)
         calls = [c.args[0] for c in run.call_args_list]
         self.assertTrue(any("--filter=blob:none" in c for c in calls))
         self.assertTrue(
@@ -202,22 +192,6 @@ class Datasets(unittest.TestCase):
                 )
             run.assert_not_called()
 
-    def test_astronex_requires_no_recorded_native_scale_or_trajectory(self):
-        self.make()
-        p = self.batch / "index.json"
-        d = json.loads(p.read_text())
-        for row in d["scenes"]:
-            row["prompts"] = {"astronex": "A room"}
-            row.pop("metres_per_anchor_unit", None)
-            q = self.batch / "trajectories" / f'{row["name"]}.npz'
-            arrays = read_arrays(q)
-            arrays.pop("metres_per_anchor_unit", None)
-            self.assertNotIn("native_w2c_latent", arrays)
-            np.savez(q, **arrays)
-        p.write_text(json.dumps(d))
-        self.assertTrue(validate_batch(self.batch, "astronex")["passed"])
-        argv, _ = command("/w", "astronex", "/python", self.batch, "scene_a", "/out")
-        self.assertNotIn("--scale", argv)
 
     def test_worldplay_offline_scale_is_not_forwarded(self):
         self.make()

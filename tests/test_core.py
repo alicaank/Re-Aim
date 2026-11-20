@@ -36,20 +36,20 @@ class Core(unittest.TestCase):
 
     def test_auto_native_depth_scale(self):
         ref = np.linspace(1, 3, 1024).reshape(32, 32)
-        for model in ["lyra", "spatia", "worldwarp"]:
+        for model in ["lyra", "worldwarp"]:
             a, q = align_model(model, reference_depth=ref, native_depth=ref * 3.7)
             self.assertAlmostEqual(a.native_units_per_reference_unit, 3.7)
             self.assertLess(q["median_relative_residual"], 1e-14)
 
-    def test_metric_and_memorizon_divisor(self):
-        for model, k in [("sana", 8), ("matrixgame", 8), ("memorizon", 2)]:
+    def test_metric_conversions(self):
+        for model, k in [("sana", 8), ("matrixgame", 8)]:
             a, _ = align_model(
                 model, metres_per_reference_unit=8, evidence="metric sidecar"
             )
             self.assertEqual(a.native_units_per_reference_unit, k)
 
     def test_unknown_native_scale_not_assumed_one(self):
-        for model in ["lingbot", "dreamx", "worldplay", "vmem", "astronex"]:
+        for model in ["dreamx", "worldplay"]:
             with self.assertRaises(AlignmentError):
                 align_model(model)
             a, _ = align_model(

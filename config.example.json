@@ -1,22 +1,16 @@
 {
   "models": [
     "lyra",
-    "spatia",
-    "matrixgame",
-    "vmem",
-    "astronex",
-    "dreamx",
-    "lingbot",
-    "worldwarp",
     "sana",
-    "memorizon",
+    "matrixgame",
+    "worldwarp",
+    "dreamx",
     "worldplay"
   ],
   "conda_root": "/opt/conda",
   "cache_root": "/data/model-cache",
   "python": {
-    "lyra": "/opt/envs/scoring/bin/python",
-    "spatia": "/opt/envs/spatia/bin/python"
+    "lyra": "/opt/envs/scoring/bin/python"
   },
   "path_map": {
     "@CONDA_ROOT@/envs/lyra2": "/opt/envs/lyra2",

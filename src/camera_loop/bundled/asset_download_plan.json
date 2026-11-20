@@ -1,19 +1,4 @@
 {
-  "lingbot": [
-    {
-      "repo": "robbyant/lingbot-world-v2-1.3b-causal-fast",
-      "destination": "lingbot/transformers"
-    },
-    {
-      "repo": "robbyant/lingbot-world-v2-14b-causal-fast",
-      "destination": "lingbot/assets",
-      "include": [
-        "Wan2.1_VAE.pth",
-        "models_t5_umt5-xxl-enc-bf16.pth",
-        "google/*"
-      ]
-    }
-  ],
   "dreamx": [
     {
       "repo": "GD-ML/DreamX-World-5B",

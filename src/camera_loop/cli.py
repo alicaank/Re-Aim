@@ -9,7 +9,7 @@ from .experiments import plan_experiment, execute_plan, check_lyra_cache
 
 
 def main():
-    p = argparse.ArgumentParser(description="Model-aware closed-loop camera correction")
+    p = argparse.ArgumentParser(description="Re-Aim adapter and evaluation tools")
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser(
         "models", help="List available native adapters and validation limits"

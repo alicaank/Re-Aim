@@ -3,20 +3,21 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "camera-closed-loop"
-version = "0.3.0"
-description = "Model-aware camera alignment and causal closed-loop camera correction"
+name = "re-aim-camera"
+version = "0.4.0"
+description = "Correct camera trajectory drift in frozen video world models"
 requires-python = ">=3.10"
-dependencies = ["numpy>=1.24", "scipy>=1.10", "Pillow>=10"]
+dependencies = ["numpy>=1.24", "scipy>=1.10", "Pillow>=10", "opencv-python-headless>=4.8", "huggingface-hub>=0.24"]
 
 [project.optional-dependencies]
 test = ["pytest>=7", "opencv-python-headless>=4.8"]
 
 [project.scripts]
+reaim = "camera_loop.reviewer:main"
 camera-loop = "camera_loop.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-camera_loop = ["profiles.json", "bundled/**/*"]
+camera_loop = ["profiles.json", "native_setup.sh", "bundled/**/*"]

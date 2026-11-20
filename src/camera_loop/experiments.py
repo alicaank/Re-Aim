@@ -119,7 +119,7 @@ sys.exit(2 if missing or invalid else 0)
     return str(cache.resolve())
 
 
-def execute_plan(plan):
+def execute_plan(plan, *, native_env=None):
     root = Path(plan["out"])
     if root.exists():
         raise ValueError("Experiment output exists; no implicit resume or overwrite")
@@ -160,6 +160,8 @@ def execute_plan(plan):
             plan["device"],
             plan["quality"],
         )
+        if native_env:
+            env.update(native_env)
         env["GV_SCALE_CACHE"] = plan["calibration_cache"]
         if cache:
             env["CAMERA_LYRA_T5_CACHE"] = cache

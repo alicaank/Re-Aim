@@ -52,13 +52,6 @@ def evaluate(workspace, python, plan, out):
     for job in plan["jobs"]:
         scene, arm = job["scene"], job["arm"]
         path = Path(job["out"])
-        if plan["model"] == "worldplay":
-            names = {
-                "baseline": "baseline",
-                "correction": "replan_commanded",
-                "correction_gainprojf": "replan_commanded_gainprojf",
-            }
-            path = path / names[arm] / f"{scene}_s{plan['seed']}.mp4"
         runs.setdefault(scene, []).append(f"{arm}={path}")
     if any("frames_dir" in rows[k] for k in runs):
         with (workspace.parent / "setup.lock").open("a") as lock:

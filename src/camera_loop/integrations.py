@@ -135,10 +135,13 @@ def materialize(workspace, config, clone=False):
         target = w / item["path"]
         target.parent.mkdir(parents=True, exist_ok=True)
         text = render(src.read_text())
-        # Respect an explicit external cache root even where old adapters use Path.home().
+        # Historical paths use both Path.home()/'.cache' and a single literal
+        # containing the full Hugging Face subpath.
         text = re.sub(
-            r"Path\.home\(\)\s*/\s*['\"]\.cache['\"]",
-            lambda m: "Path(" + repr(values["@CACHE_ROOT@"]) + ")",
+            r"""Path\.home\(\)\s*/\s*(["'])\.cache(/[^'"]*)?\1""",
+            lambda match: "Path("
+            + repr(values["@CACHE_ROOT@"] + (match[2] or ""))
+            + ")",
             text,
         )
         if target.name == "fair_common.py":
@@ -197,7 +200,10 @@ def command(
     if quality not in ["enforce", "report"]:
         raise ValueError("Invalid quality mode")
     common = ["--batch", b, "--scene", scene, "--out", o]
-    corrected = {"correction": "replan_commanded", RGC_ARM: "replan_commanded_gainprojf"}.get(arm, arm)
+    corrected = {
+        "correction": "replan_commanded",
+        RGC_ARM: "replan_commanded_gainprojf",
+    }.get(arm, arm)
     if model == "matrixgame":
         script = C / "mg35_stream_run.py"
         args = common + ["--arm", arm, "--blocks", "6", "--seed", "7"]

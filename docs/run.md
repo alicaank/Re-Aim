@@ -13,9 +13,8 @@ Pass an unpacked model directory, or a parent containing multiple models. Use `-
 | `matrixgame` | `first-person.safetensors` from Matrix-Game 3.5 Base |
 | `worldwarp` | `worldwarp_latest.ckpt` |
 | `dreamx` | `DreamX-World-5B/model.safetensors` |
-| `worldplay` | `generator_bf16.safetensors` alongside `wan_transformer/` |
 
-The runner resolves shared Wan, Gemma, CUT3R and DA3 assets from the checkpoint directory or Hugging Face. Gated repositories require access in the account used by the Hugging Face client. For HY-WorldPlay put the checkpoint author’s `reaim-calibration.json` beside `generator_bf16.safetensors`. It must contain a positive `metres_per_native_unit` and a `source` identifying the calibration. The adapter measures metric anchor depth and converts it to native units at runtime. An existing `CAMERA_LOOP_UNIT_PROVIDER` also works. The original paper conversion is unavailable in this repository. [Calibration contract](online_units.md)
+The runner resolves shared Wan, Gemma, CUT3R and DA3 assets from the checkpoint directory or Hugging Face. Gated repositories require access in the account used by the Hugging Face client. The automatic runner skips HY-WorldPlay until its checkpoint calibration is available.
 
 ## Scene input
 
@@ -23,7 +22,7 @@ Use an extracted DL3DV scene containing Nerfstudio `transforms.json` and the cor
 
 The importer converts OpenGL camera poses to anchor-relative OpenCV poses, corrects lens distortion and maps RGB and intrinsics to the same grid. Offline preparation matches metric anchor depth from DA3 against triangulated correspondences in the recording. Calibration requires texture and parallax. Each rollout then receives its initial image, caption, target camera path and registered depth. If the scene lacks a caption, the command uses a generic camera-following prompt.
 
-You can also point `--data` at an existing registered batch or a scene manifest. This is the route for exact paper calibration or a scene without enough parallax. The default adapters need 481 registered frames for Lyra, 505 for Matrix-Game, 169 for SANA, 161 for WorldWarp, 165 for DreamX and 173 for HY-WorldPlay. The scorer evaluates 480 frames for Lyra and Matrix-Game and 160 for the other four. [Registered batch format](datasets.md)
+You can also point `--data` at an existing registered batch or a scene manifest. This is the route for exact paper calibration or a scene without enough parallax. The default adapters need 481 registered frames for Lyra, 505 for Matrix-Game, 169 for SANA, 161 for WorldWarp and 165 for DreamX. The scorer evaluates 480 frames for Lyra and Matrix-Game and 160 for the other three. [Registered batch format](datasets.md)
 
 ## Outputs
 

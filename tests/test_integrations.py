@@ -39,6 +39,8 @@ class Integrations(unittest.TestCase):
                 s = p.read_text()
                 for token in ["@WORKSPACE@", "/home/hj", "@CONDA_ROOT@"]:
                     self.assertFalse(token in s, f"{token} remains in {p}")
+            for script in ("worldwarp_run.py", "lyra_run.py"):
+                self.assertIn("/data/cache/huggingface", (w / V / "snapshots" / script).read_text())
             m = json.loads((w / V / "source_manifest.json").read_text())
             for name, record in m.items():
                 self.assertEqual(

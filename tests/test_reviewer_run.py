@@ -10,7 +10,7 @@ import pytest
 from PIL import Image
 
 from camera_loop.dl3dv import metric_scale, rectification, scene_frames
-from camera_loop.reviewer import checkpoints, main, worldplay_calibration
+from camera_loop.reviewer import checkpoints, main
 
 
 def make_scene(directory, n):
@@ -87,12 +87,19 @@ def test_checkpoint_discovery_and_calibration(tmp_path):
     (a / "first-person.safetensors").touch()
     (a / "model.safetensors").touch()
     assert checkpoints(tmp_path, None) == {"matrixgame": a}
-    with pytest.raises(ValueError, match="Missing"):
-        worldplay_calibration(a)
-    p = a / "reaim-calibration.json"
-    p.write_text(json.dumps(dict(metres_per_native_unit=-1, source="fixture")))
-    with pytest.raises(ValueError, match="Invalid"):
-        worldplay_calibration(a)
+    (a / "generator_bf16.safetensors").touch()
+    with pytest.raises(SystemExit, match="1"):
+        main(
+            [
+                "--model",
+                "worldplay",
+                "--checkpoints",
+                str(a),
+                "--data",
+                str(tmp_path),
+                "--check",
+            ]
+        )
 
 
 def test_run_routes_generation_and_scoring(tmp_path, monkeypatch):

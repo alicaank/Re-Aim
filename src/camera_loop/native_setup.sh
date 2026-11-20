@@ -25,12 +25,6 @@ case "$model" in
     "${pip[@]}" install ninja packaging wheel setuptools
     "${pip[@]}" install --no-build-isolation -r requirements.txt
     ;;
-  worldplay)
-    "${pip[@]}" install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
-    "${pip[@]}" install -r requirements.txt
-    "${pip[@]}" install --no-build-isolation flash-attn
-    "${pip[@]}" install -e "$4"
-    ;;
   worldwarp)
     "${pip[@]}" install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu126
     "${pip[@]}" install ninja packaging wheel setuptools

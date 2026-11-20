@@ -22,7 +22,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parent.parent/'fair_common_202610
 gain_dir = Path(__file__).resolve().parent.parent / 'continuous_eval_20261029/scale_20261030/correction_v4_gaincum_20261109'
 sys.path.insert(0, str(gain_dir))
 from gain_rule import ProjectedGainFloor
-from causal_units import runtime_anchor_scale, require_runtime_provider, metric_prediction_scale
+from causal_units import runtime_anchor_scale, require_runtime_provider
 import numpy as np, torch
 from PIL import Image
 WP = '@WORKSPACE@/sota_repos/worldplay'; sys.path[:0] = [WP, WP + '/wan']
@@ -105,23 +105,7 @@ class Roller:
         ref = np.asarray(src.resize((nw, nh), Image.LANCZOS).crop((l, t, l + W, t + H)))
         assert np.abs(self.anchor.astype(int) - ref.astype(int)).max() <= 1, 'k_worldplay geometry disagrees with the pipeline'
         self.anchor_depth = fc.remap_depth(sc['depth'], sc['K'], self.K, (H, W))
-        calibration_file = os.environ.get('REAIM_WORLDPLAY_CALIBRATION')
-        if calibration_file:
-            contract = json.loads(Path(calibration_file).read_text())
-            self.da3.to('cuda')
-            try:
-                pred = self.da3.inference(image=[self.anchor], intrinsics=self.K[None].astype(np.float32), process_res=504)
-                self.unit, self.unit_calibration = metric_prediction_scale(
-                    self.da3, pred, self.anchor, self.anchor_depth, self.K, divisor=contract['metres_per_native_unit'])
-            finally:
-                self.da3.to('cpu')
-                torch.cuda.empty_cache()
-            self.unit_calibration['checkpoint_unit_source'] = contract['source']
-            unit_receipt.parent.mkdir(parents=True, exist_ok=True)
-            with unit_receipt.open('x') as f:
-                json.dump(self.unit_calibration, f, indent=2)
-        else:
-            self.unit, self.unit_calibration = runtime_anchor_scale('worldplay', self.anchor, self.anchor_depth, self.K, receipt=unit_receipt)
+        self.unit, self.unit_calibration = runtime_anchor_scale('worldplay', self.anchor, self.anchor_depth, self.K, receipt=unit_receipt)
         self.cmd = self.plan.copy(); self.mem = self.cmd.copy(); self.measured = [None] * n_lat; self.measured[0] = np.eye(4); self.events = []
         self.gain = ProjectedGainFloor(self.cmd[0], self.measured[0]) if arm.get("rgc") else None
         k = self.K.copy(); k[0, 0] /= k[0, 2] * 2; k[1, 1] /= k[1, 2] * 2; k[0, 2] = .5; k[1, 2] = .5; self.Kn = k   # pose_to_input normalisation
@@ -187,8 +171,7 @@ def main():
     assert 16 * a.chunks - 3 >= fc.N_FRAMES + 1, 'need >= 161 frames (0..160)'
     arms = [x for x in json.load(open(a.arms)) if not a.arm or x['name'] in a.arm]; a.out.mkdir(parents=True, exist_ok=True)
     scenes = a.scenes or [s['name'] for s in fc.index()['scenes']]
-    if not os.environ.get('REAIM_WORLDPLAY_CALIBRATION'):
-        require_runtime_provider('worldplay')
+    require_runtime_provider('worldplay')
     os.environ.setdefault('MASTER_ADDR', '127.0.0.1')
     os.environ.setdefault('MASTER_PORT', '29541')
     wp = WorldPlay(); da3 = load_da3('cpu')

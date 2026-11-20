@@ -3,7 +3,6 @@
 import argparse
 import hashlib
 import json
-import math
 import os
 from pathlib import Path
 import shutil
@@ -93,7 +92,13 @@ def companion(search, repo, revision=None, only=None):
     from huggingface_hub import snapshot_download
 
     name = repo.split("/")[-1]
-    for path in (search / name, search / repo, search):
+    for path in (
+        search / name,
+        search / repo,
+        search,
+        search.parent / name,
+        search.parent / repo,
+    ):
         if path.name.lower() == name.lower() and path.is_dir():
             return path
     return Path(snapshot_download(repo, revision=revision, allow_patterns=only))
@@ -131,12 +136,6 @@ def mount_assets(w, model, primary, search, da3):
         link(
             cut, w / "cache/huggingface/hub/models--liguang0115--cut3r/snapshots/local"
         )
-    elif model == "worldplay":
-        link(primary, w / "baselines/models/worldplay5b")
-        link(
-            companion(search, "Wan-AI/Wan2.2-TI2V-5B-Diffusers"),
-            w / "baselines/models/Wan2.2-TI2V-5B-Diffusers",
-        )
 
 
 def install_env(w, role, source):
@@ -151,9 +150,7 @@ def install_env(w, role, source):
     if not (prefix / "conda-meta/history").is_file():
         packages = ["python=" + version, "pip", "cmake", "ninja", "packaging", "ffmpeg"]
         if role != "observer":
-            cuda = {"worldwarp": "12.6", "worldplay": "12.4", "dreamx": "12.4"}.get(
-                role, "12.8"
-            )
+            cuda = {"worldwarp": "12.6", "dreamx": "12.4"}.get(role, "12.8")
             packages.append(f"cuda-toolkit={cuda}")
         if role == "lyra":
             packages += ["gcc_linux-64=13", "gxx_linux-64=13", "eigen", "zlib", "libgl"]
@@ -171,7 +168,6 @@ def install_env(w, role, source):
             ],
             check=True,
         )
-    da3_src = w / "lyra/Lyra-2/lyra_2/_src/inference/depth_anything_3"
     subprocess.run(
         [
             "conda",
@@ -184,7 +180,6 @@ def install_env(w, role, source):
             role,
             source,
             PACKAGE.parent,
-            da3_src,
         ],
         check=True,
     )
@@ -257,26 +252,6 @@ def runtime(cache, model, ckpt, search):
     return w, native, observer, depth
 
 
-def worldplay_calibration(primary):
-    if os.environ.get("CAMERA_LOOP_UNIT_PROVIDER"):
-        return None
-    path = primary / "reaim-calibration.json"
-    if not path.is_file():
-        raise ValueError(
-            f"Missing {path}: this HY-WorldPlay checkpoint needs its documented metres_per_native_unit and source, or a native camera-unit provider."
-        )
-    value = json.loads(path.read_text())
-    factor = value.get("metres_per_native_unit")
-    if (
-        type(factor) not in (int, float)
-        or not math.isfinite(factor)
-        or factor <= 0
-        or not str(value.get("source") or "").strip()
-    ):
-        raise ValueError(f"Invalid checkpoint calibration in {path}")
-    return path
-
-
 def input_kind(data):
     if (data / "index.json").is_file() and (data / "trajectories").is_dir():
         return "batch"
@@ -331,9 +306,12 @@ def run(a):
 
     ckpt, data, out = a.checkpoints.resolve(), a.data.resolve(), a.out.resolve()
     models = checkpoints(ckpt, a.model)
-    calibration = (
-        worldplay_calibration(models["worldplay"]) if "worldplay" in models else None
-    )
+    if "worldplay" in models:
+        del models["worldplay"]
+        message = "HY-WorldPlay is deferred until its checkpoint camera-unit calibration is available."
+        if not models:
+            raise ValueError(message)
+        print(f"Skipping HY-WorldPlay. {message}", file=sys.stderr)
     kind = input_kind(data)
     count = max(max(REQUIREMENTS[m]) for m in models)
     files = []
@@ -410,8 +388,6 @@ def run(a):
                 "CUDA_HOME": str(prefix),
                 "PYTHONNOUSERSITE": "1",
             }
-            if model == "worldplay" and calibration:
-                native_env["REAIM_WORLDPLAY_CALIBRATION"] = str(calibration)
             execute_plan(plan, native_env=native_env)
             if not a.generate_only:
                 from .review_score import evaluate

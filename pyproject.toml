@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "re-aim-camera"
+name = "camera-closed-loop"
 version = "0.4.0"
 description = "Correct camera trajectory drift in frozen video world models"
 requires-python = ">=3.10"

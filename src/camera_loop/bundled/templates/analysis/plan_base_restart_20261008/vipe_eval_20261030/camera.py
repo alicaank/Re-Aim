@@ -31,7 +31,9 @@ def estimate(frames,K,reference_depth,output):
  if not Path(py).is_file():raise FileNotFoundError('VIPE interpreter missing: '+py)
  with tempfile.TemporaryDirectory(prefix='vipe-ipc-',dir=output.parent) as td:
   td=Path(td);np.savez(td/'input.npz',frames=frames,K=K)
-  env=dict(os.environ,HF_HUB_OFFLINE='1',PYTHONUNBUFFERED='1');env.pop('LD_LIBRARY_PATH',None)
+  env = dict(os.environ, PYTHONUNBUFFERED='1')
+  env.setdefault('HF_HUB_OFFLINE', '1')
+  env.pop('LD_LIBRARY_PATH', None)
   with output.with_suffix('.log').open('x') as log:
    subprocess.run([py,str(R/'worker.py'),'--input',str(td/'input.npz'),'--out',str(td/'raw.npz')],stdout=log,stderr=subprocess.STDOUT,env=env,check=True)
   with np.load(td/'raw.npz') as z:

@@ -23,7 +23,7 @@ Use the workspace created by `camera-loop prepare --clone`. If you already have 
    export CAMERA_VIPE_PYTHON="$WORKSPACE/vipe/.venv/bin/python"
    ```
 
-   Use the [pinned VIPE installation guide](https://github.com/nv-tlabs/vipe/blob/95a8816947602ddc26fcb7a80bea4f9313059578/docs/installation.md) for compiler and system prerequisites. Populate VIPE's default SLAM and `unidepth-l` weights in the worker's Hugging Face cache before scoring. The evaluation worker runs offline. To check that its environment imports and parses the actual pipeline configuration, run:
+   Use the [pinned VIPE installation guide](https://github.com/nv-tlabs/vipe/blob/95a8816947602ddc26fcb7a80bea4f9313059578/docs/installation.md) for compiler and system prerequisites. The worker defaults to offline Hugging Face access. On a machine with an empty cache, allow downloads for the first scoring run as shown below. VIPE uses the default SLAM and `unidepth-l` weights. To check that its environment imports and parses the actual pipeline configuration, run:
 
    ```bash
    "$CAMERA_VIPE_PYTHON" "$WORKSPACE/analysis/plan_base_restart_20261008/vipe_eval_20261030/worker.py" --dry-run
@@ -63,6 +63,8 @@ args=(--workspace "$WORKSPACE" --python "$SCORE_PYTHON" --model sana
 camera-loop evaluate "${args[@]}" --check-inputs
 camera-loop evaluate "${args[@]}"
 ```
+
+For the first run on a machine that needs to fetch VIPE weights, use `HF_HUB_OFFLINE=0 camera-loop evaluate "${args[@]}"` in place of the second command. Keep the same cache location on subsequent runs.
 
 The first command checks that the scorer can read each rollout and the sampled reference frames on CPU. The second runs VIPE and the image metrics. To score camera motion alone, add `--camera-only` to both commands. To score two arms, supply two `LABEL=PATH` arguments instead of three. Use a fresh output stem for each attempt.
 
